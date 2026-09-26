@@ -10,6 +10,18 @@ const SHELL_URLS = [
   '/icons/favicon-32.png',
 ];
 
+const assetsIn = (html) => [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+
+/** Keeps only the build files the current page uses, so old versions don't pile up. */
+async function pruneAssets(html) {
+  const keep = new Set(assetsIn(html));
+  const cache = await caches.open(SHELL);
+  for (const req of await cache.keys()) {
+    const path = new URL(req.url).pathname;
+    if (path.startsWith('/assets/') && !keep.has(path)) await cache.delete(req);
+  }
+}
+
 // ---------- Install: cache the shell, including the hashed JS/CSS it references ----------
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -18,8 +30,8 @@ self.addEventListener('install', (event) => {
       await cache.addAll(SHELL_URLS);
       try {
         const html = await (await cache.match('/')).text();
-        const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
-        await cache.addAll(assets);
+        await cache.addAll(assetsIn(html));
+        await pruneAssets(html);
       } catch {
         // Assets get cached on first use instead.
       }
@@ -54,7 +66,16 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           const res = await fetch(req);
-          if (res.ok) (await caches.open(SHELL)).put('/', res.clone());
+          if (res.ok) {
+            const copy = res.clone();
+            event.waitUntil(
+              (async () => {
+                const html = await copy.clone().text();
+                await (await caches.open(SHELL)).put('/', copy);
+                await pruneAssets(html);
+              })(),
+            );
+          }
           return res;
         } catch {
           return (await caches.match('/')) || Response.error();
