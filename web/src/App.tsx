@@ -169,7 +169,14 @@ function Shell({ dev }: { dev: DevScreen | null }) {
           onHide={hideBanner}
         />
       )}
-      {moment && <Moment data={moment} onSaid={momentSaid} onLater={momentLater} />}
+      {moment && (
+        <Moment
+          data={moment}
+          icon={affirmations.find((x) => x.id === moment.affirmationId)?.icon}
+          onSaid={momentSaid}
+          onLater={momentLater}
+        />
+      )}
     </>
   );
 }

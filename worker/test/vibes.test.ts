@@ -3,6 +3,15 @@ import { VIBES, VIBE_NAMES, fillTitle, vibeBody } from '../../shared/vibes';
 import { timeIcon } from '../../shared/icons';
 
 describe('shared vibes', () => {
+  it('offers at least 8 distinct vibes', () => {
+    expect(VIBE_NAMES.length).toBeGreaterThanOrEqual(8);
+    const names = VIBE_NAMES.map((v) => VIBES[v].name);
+    const colors = VIBE_NAMES.map((v) => VIBES[v].colors.join());
+    expect(new Set(names).size).toBe(names.length);
+    expect(new Set(colors).size).toBe(colors.length);
+    for (const v of VIBE_NAMES) expect(VIBES[v].symbol).not.toBe('');
+  });
+
   it('has three templates, an emoji, three colors and three icons per vibe', () => {
     for (const v of VIBE_NAMES) {
       expect(VIBES[v].titles).toHaveLength(3);

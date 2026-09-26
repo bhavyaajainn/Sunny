@@ -3,6 +3,7 @@ import { Icon } from '../components/Icon';
 import { AppIcon, Sun } from '../components/bits';
 import { Rain, useBursts } from '../components/Effects';
 import type { PushData } from '../../../shared/types';
+import type { IconName } from '../../../shared/icons';
 import { VIBES, type Vibe } from '../../../shared/vibes';
 
 /** The gradient colors of a vibe as CSS variables. */
@@ -14,10 +15,13 @@ function vibeVars(v: Vibe): CSSProperties {
 /** Full-screen celebration shown after tapping a notification or the in-app banner. */
 export function Moment({
   data,
+  icon,
   onSaid,
   onLater,
 }: {
   data: PushData;
+  /** The affirmation's own icon, shown in the middle of the row. */
+  icon?: IconName;
   onSaid: () => void;
   onLater: () => void;
 }) {
@@ -52,9 +56,9 @@ export function Moment({
       <Rain icons={vibe.icons} />
       <Sun kind="msun" />
       <div className="mrow" aria-hidden="true">
-        {vibe.icons.map((n, i) => (
-          <Icon key={i} name={n} />
-        ))}
+        <Icon name={vibe.icons[0]} />
+        {icon ? <Icon name={icon} className="mine" /> : <Icon name={vibe.icons[1]} />}
+        <Icon name={vibe.icons[2]} />
       </div>
       <p className="mtitle">{data.title}</p>
       <p className="mwords" aria-label={data.body}>

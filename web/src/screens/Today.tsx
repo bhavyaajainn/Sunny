@@ -7,11 +7,11 @@ import { useStore } from '../data/store';
 import { feltText } from '../lib/felt';
 import { greeting, nextReminder } from '../lib/time';
 
+// Small decorations around the affirmation's own (big) icon.
 const DOODLES: ReadonlyArray<[IconName, number, number, number]> = [
-  ['cloud', 18, 26, 0],
-  ['star', 78, 10, 0.5],
+  ['star', 84, 10, 0.5],
   ['heart', 128, 40, 1],
-  ['flower', 66, 58, 1.5],
+  ['flower', 76, 58, 1.5],
 ];
 
 /** Re-render once a minute so the greeting and "Next reminder" stay current. */
@@ -64,6 +64,12 @@ export function TodayScreen({
       <div className="suncard" ref={card}>
         <Sun kind="disc" />
         <div className="doodles" aria-hidden="true">
+          <Icon
+            key={current?.id ?? 0}
+            name={current?.icon ?? 'sun'}
+            className="mine"
+            style={{ left: 16, top: 22 }}
+          />
           {DOODLES.map(([n, x, y, d]) => (
             <Icon key={n} name={n} style={{ left: x, top: y, animationDelay: `${d}s` }} />
           ))}

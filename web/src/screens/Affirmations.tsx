@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
-import { NotifCard, Seg, Switch, TRASH_SVG } from '../components/bits';
+import { NotifCard, Switch, TRASH_SVG } from '../components/bits';
 import { useToast } from '../components/Toast';
 import { ICON_NAMES, timeIcon, type IconName } from '../../../shared/icons';
 import { buildPayload } from '../../../shared/payload';
@@ -11,8 +11,6 @@ import { useStore } from '../data/store';
 import { formatDays, formatTime } from '../lib/time';
 
 const QUICK_EMOJI = ['☀️', '💪', '✨', '🌻', '🔥', '🧘'];
-const VIBE_OPTIONS = VIBE_NAMES.map((v) => ({ value: v, label: VIBES[v].label }));
-const VIBE_EMOJI: Record<Vibe, string> = { hype: '🔥', sunny: '☀️', calm: '🌙' };
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function AffirmationsScreen() {
@@ -56,7 +54,7 @@ export function AffirmationsScreen() {
                   onClick={() => setEditing(a)}
                   aria-label={`Edit: ${a.text}. ${
                     a.time
-                      ? `Reminder ${formatTime(a.time)}, ${formatDays(a.days)}, ${a.vibe} vibe`
+                      ? `Reminder ${formatTime(a.time)}, ${formatDays(a.days)}, ${VIBES[a.vibe].name} vibe`
                       : 'No reminder time yet'
                   }`}
                 >
@@ -66,7 +64,7 @@ export function AffirmationsScreen() {
                       <Icon name={timeIcon(a.time)} />
                       <span>
                         <span className="nw">{formatTime(a.time)}</span> ·{' '}
-                        <span className="nw">{formatDays(a.days)}</span> · {VIBE_EMOJI[a.vibe]}
+                        <span className="nw">{formatDays(a.days)}</span> · {VIBES[a.vibe].symbol}
                       </span>
                     </span>
                   ) : (
@@ -250,13 +248,26 @@ function AffirmationSheet({
       <span className="lbl" id="aff-vibe">
         Vibe
       </span>
-      <Seg
-        className="vibe-seg"
-        label="Vibe"
-        options={VIBE_OPTIONS}
-        value={vibe}
-        onChange={setVibe}
-      />
+      <div className="vibepick" role="radiogroup" aria-labelledby="aff-vibe">
+        {VIBE_NAMES.map((v) => {
+          const [m1, m2, m3] = VIBES[v].colors;
+          return (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={v === vibe}
+              style={{ '--m1': m1, '--m2': m2, '--m3': m3 } as CSSProperties}
+              onClick={() => setVibe(v)}
+            >
+              <span className="sym" aria-hidden="true">
+                {VIBES[v].symbol}
+              </span>
+              {VIBES[v].name}
+            </button>
+          );
+        })}
+      </div>
       <div className="sheet-preview" aria-label="Notification preview">
         <NotifCard title={preview.title} body={preview.body} />
       </div>
