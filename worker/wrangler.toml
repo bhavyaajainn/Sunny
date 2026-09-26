@@ -1,6 +1,9 @@
 name = "sunny"
 main = "src/index.ts"
 compatibility_date = "2026-09-01"
+workers_dev = true
+# No extra per-version preview URLs: one public address only.
+preview_urls = false
 
 # Frontend (web/dist) and API are served by this one Worker on one HTTPS URL.
 [assets]
@@ -13,7 +16,7 @@ run_worker_first = ["/api/*"]
 binding = "DB"
 database_name = "sunny"
 # Paste the id printed by `npx wrangler d1 create sunny`.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "8632bbb7-7e7e-48a7-aed3-4e7d699579cd"
 migrations_dir = "migrations"
 
 # Check reminders every minute.
