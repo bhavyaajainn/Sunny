@@ -3,8 +3,13 @@ import { Icon } from '../components/Icon';
 import { AppIcon, Sun } from '../components/bits';
 import { Rain, useBursts } from '../components/Effects';
 import type { PushData } from '../../../shared/types';
-import { VIBES } from '../../../shared/vibes';
-import { useStore } from '../data/store';
+import { VIBES, type Vibe } from '../../../shared/vibes';
+
+/** The gradient colors of a vibe as CSS variables. */
+function vibeVars(v: Vibe): CSSProperties {
+  const [m1, m2, m3] = VIBES[v].colors;
+  return { '--m1': m1, '--m2': m2, '--m3': m3 } as CSSProperties;
+}
 
 /** Full-screen celebration shown after tapping a notification or the in-app banner. */
 export function Moment({
@@ -16,8 +21,7 @@ export function Moment({
   onSaid: () => void;
   onLater: () => void;
 }) {
-  const { settings } = useStore();
-  const vibe = VIBES[settings.vibe];
+  const vibe = VIBES[data.vibe];
   const host = useRef<HTMLDivElement>(null);
   const [bursts, fire] = useBursts();
   const [done, setDone] = useState(false);
@@ -38,6 +42,7 @@ export function Moment({
   return (
     <div
       className="moment"
+      style={vibeVars(data.vibe)}
       ref={host}
       tabIndex={-1}
       role="dialog"
@@ -97,7 +102,13 @@ export function Banner({
   }, [onHide]);
 
   return (
-    <button type="button" className="banner" onClick={onOpen} aria-live="polite">
+    <button
+      type="button"
+      className="banner"
+      style={vibeVars(data.vibe)}
+      onClick={onOpen}
+      aria-live="polite"
+    >
       <AppIcon />
       <div className="b-body">
         <b>{data.title}</b>

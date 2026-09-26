@@ -1,14 +1,7 @@
 // Input validation for API bodies. Everything arrives as `unknown` and is narrowed here.
 import { isIconName, type IconName } from '../../shared/icons';
 import { isVibe, type Vibe } from '../../shared/vibes';
-import {
-  AFFIRMATION_MAX,
-  LABEL_MAX,
-  NAME_MAX,
-  THEMES,
-  type Settings,
-  type Theme,
-} from '../../shared/types';
+import { AFFIRMATION_MAX, NAME_MAX, THEMES, type Settings, type Theme } from '../../shared/types';
 
 export type Check<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -51,13 +44,6 @@ function time(v: unknown): Check<string> {
     : bad('Time must look like 07:30 (24-hour HH:MM).');
 }
 
-function label(v: unknown): Check<string> {
-  if (typeof v !== 'string' || !v.trim()) return bad('Give the reminder a name.');
-  const t = v.trim();
-  if (t.length > LABEL_MAX) return bad(`Reminder names can be up to ${LABEL_MAX} characters.`);
-  return ok(t);
-}
-
 function days(v: unknown): Check<string> {
   if (typeof v !== 'string' || !DAYS_RE.test(v))
     return bad('Days must be 7 characters of 0 or 1, Monday first.');
@@ -69,20 +55,40 @@ function bool(v: unknown, what: string): Check<boolean> {
   return typeof v === 'boolean' ? ok(v) : bad(`${what} must be true or false.`);
 }
 
-export function affirmationCreate(body: unknown): Check<{ text: string; icon: IconName }> {
-  if (!isObj(body)) return bad('Send { "text": "...", "icon": "sun" }.');
+function vibe(v: unknown): Check<Vibe> {
+  return isVibe(v) ? ok(v) : bad('Vibe must be hype, sunny or calm.');
+}
+
+export interface AffirmationCreate {
+  text: string;
+  icon: IconName;
+  time: string;
+  days: string;
+  vibe: Vibe;
+}
+
+/** New affirmations always have a reminder time. */
+export function affirmationCreate(body: unknown): Check<AffirmationCreate> {
+  if (!isObj(body))
+    return bad(
+      'Send { "text": "...", "icon": "sun", "time": "07:30", "days": "1111111", "vibe": "sunny" }.',
+    );
   const t = text(body.text);
   if (!t.ok) return t;
   const i = body.icon === undefined ? ok<IconName>('sun') : icon(body.icon);
   if (!i.ok) return i;
-  return ok({ text: t.value, icon: i.value });
+  if (body.time === undefined || body.time === null)
+    return bad('Pick a time for this affirmation, then save.');
+  const tm = time(body.time);
+  if (!tm.ok) return tm;
+  const d = body.days === undefined ? ok('1111111') : days(body.days);
+  if (!d.ok) return d;
+  const v = body.vibe === undefined ? ok<Vibe>('sunny') : vibe(body.vibe);
+  if (!v.ok) return v;
+  return ok({ text: t.value, icon: i.value, time: tm.value, days: d.value, vibe: v.value });
 }
 
-export interface AffirmationPatch {
-  text?: string;
-  icon?: IconName;
-  active?: boolean;
-}
+export type AffirmationPatch = Partial<AffirmationCreate & { active: boolean }>;
 
 export function affirmationPatch(body: unknown): Check<AffirmationPatch> {
   if (!isObj(body)) return bad('Send the fields to change, like { "active": false }.');
@@ -97,52 +103,20 @@ export function affirmationPatch(body: unknown): Check<AffirmationPatch> {
     if (!i.ok) return i;
     out.icon = i.value;
   }
-  if (body.active !== undefined) {
-    const a = bool(body.active, 'active');
-    if (!a.ok) return a;
-    out.active = a.value;
-  }
-  if (Object.keys(out).length === 0) return bad('Nothing to change. Send text, icon or active.');
-  return ok(out);
-}
-
-export function reminderCreate(
-  body: unknown,
-): Check<{ time: string; label: string; days: string }> {
-  if (!isObj(body)) return bad('Send { "time": "07:30", "label": "...", "days": "1111111" }.');
-  const t = time(body.time);
-  if (!t.ok) return t;
-  const l = label(body.label);
-  if (!l.ok) return l;
-  const d = body.days === undefined ? ok('1111111') : days(body.days);
-  if (!d.ok) return d;
-  return ok({ time: t.value, label: l.value, days: d.value });
-}
-
-export interface ReminderPatch {
-  time?: string;
-  label?: string;
-  days?: string;
-  active?: boolean;
-}
-
-export function reminderPatch(body: unknown): Check<ReminderPatch> {
-  if (!isObj(body)) return bad('Send the fields to change, like { "active": false }.');
-  const out: ReminderPatch = {};
   if (body.time !== undefined) {
-    const t = time(body.time);
-    if (!t.ok) return t;
-    out.time = t.value;
-  }
-  if (body.label !== undefined) {
-    const l = label(body.label);
-    if (!l.ok) return l;
-    out.label = l.value;
+    const tm = time(body.time);
+    if (!tm.ok) return tm;
+    out.time = tm.value;
   }
   if (body.days !== undefined) {
     const d = days(body.days);
     if (!d.ok) return d;
     out.days = d.value;
+  }
+  if (body.vibe !== undefined) {
+    const v = vibe(body.vibe);
+    if (!v.ok) return v;
+    out.vibe = v.value;
   }
   if (body.active !== undefined) {
     const a = bool(body.active, 'active');
@@ -150,22 +124,18 @@ export function reminderPatch(body: unknown): Check<ReminderPatch> {
     out.active = a.value;
   }
   if (Object.keys(out).length === 0)
-    return bad('Nothing to change. Send time, label, days or active.');
+    return bad('Nothing to change. Send text, icon, time, days, vibe or active.');
   return ok(out);
 }
 
 export function settingsPatch(body: unknown): Check<Partial<Settings>> {
-  if (!isObj(body)) return bad('Send the settings to change, like { "vibe": "calm" }.');
+  if (!isObj(body)) return bad('Send the settings to change, like { "name": "Bhavya" }.');
   const out: Partial<Settings> = {};
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') return bad('Name must be text.');
     const n = body.name.trim();
     if (n.length > NAME_MAX) return bad(`Names can be up to ${NAME_MAX} characters.`);
     out.name = n;
-  }
-  if (body.vibe !== undefined) {
-    if (!isVibe(body.vibe)) return bad('Vibe must be hype, sunny or calm.');
-    out.vibe = body.vibe satisfies Vibe;
   }
   if (body.theme !== undefined) {
     if (typeof body.theme !== 'string' || !(THEMES as readonly string[]).includes(body.theme))
@@ -177,8 +147,7 @@ export function settingsPatch(body: unknown): Check<Partial<Settings>> {
       return bad('Timezone must be an IANA name like Asia/Kolkata.');
     out.timezone = body.timezone;
   }
-  if (Object.keys(out).length === 0)
-    return bad('Nothing to change. Send name, vibe, theme or timezone.');
+  if (Object.keys(out).length === 0) return bad('Nothing to change. Send name, theme or timezone.');
   return ok(out);
 }
 

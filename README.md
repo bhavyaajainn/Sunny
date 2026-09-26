@@ -1,6 +1,6 @@
 # Sunny ☀️
 
-A personal affirmation app for iPhone. You install it from Safari to your Home Screen, write your own affirmations, and pick reminder times. At those times Sunny sends a random affirmation as a real iOS notification, even when the app is closed.
+A personal affirmation app for iPhone. You install it from Safari to your Home Screen and write your own affirmations. Each affirmation has its own reminder time, days and vibe, and at that time Sunny sends it to you as a real iOS notification, even when the app is closed.
 
 It runs entirely on the **Cloudflare free plan**: one Worker serves the app and the API, stores data in D1, and a cron job checks reminders every minute. No App Store, no Apple Developer account, nothing to pay for.
 
@@ -9,7 +9,8 @@ Live: **https://sunny.sunny-worker.workers.dev**
 ### Changes from BUILD_PROMPT.md
 
 - **No passcode and no onboarding.** Opening Sunny goes straight to Today. The API has no login, so anyone who knows the Worker URL can read and change your affirmations and reminders. Keep the URL to yourself. Test notifications are rate-limited to one every 10 seconds.
-- The starter affirmations and reminders are inserted by the first D1 migration.
+- The starter affirmations are inserted by the first D1 migration.
+- **No Reminders tab.** Each affirmation is its own reminder: the add/edit sheet asks for the time (required), the days and the vibe. At that time Sunny sends that exact affirmation. The 6 starter affirmations have no time until you set one.
 - Notifications are turned on from **Settings → Notifications → Turn on**. The install guide is in Settings.
 - The VAPID subject is the site URL (not an email), so no personal email is in the repo.
 
@@ -29,7 +30,7 @@ sunny/
 └── scripts/   generate-vapid.mjs, generate-icons.mjs
 ```
 
-- **Reminders:** every minute the cron converts "now" to your timezone (default Asia/Kolkata). Each active reminder whose time is now, or up to 2 minutes ago, and whose day is switched on, gets sent once per day. It picks a random active affirmation (avoiding the last one sent) and pushes it to every subscribed device. Dead subscriptions (404/410) are removed.
+- **Reminders:** every minute the cron converts "now" to your timezone (default Asia/Kolkata). Each active affirmation whose time is now, or up to 2 minutes ago, and whose day is switched on, is sent once per day, with its own vibe, to every subscribed device. Dead subscriptions (404/410) are removed.
 - **Tapping a notification** opens Sunny on the Moment screen with that affirmation. If Sunny is open when a reminder arrives, you also get the in-app banner.
 - **Offline:** the app shell is cached by the service worker and your data by the app, so you can read your affirmations offline. Changes need a connection; you'll see a message if you're offline.
 
@@ -102,7 +103,7 @@ cd worker && npx wrangler deploy
 - Reminders fire at the minute set in **Asia/Kolkata** time, and only on the days switched on.
 - To see what the server does, run `cd worker && npx wrangler tail` while a reminder is due.
 
-**Deleted the Home Screen icon?** Add it again from Safari (step 5), open it, and tap **Turn on** again. Your affirmations and reminders are safe on the server. The old subscription is removed automatically the first time a push to it fails.
+**Deleted the Home Screen icon?** Add it again from Safari (step 5), open it, and tap **Turn on** again. Your affirmations are safe on the server. The old subscription is removed automatically the first time a push to it fails.
 
 **"You just sent a test"**: tests are limited to one every 10 seconds.
 
@@ -120,7 +121,7 @@ npm run dev:web      # Vite on http://localhost:5173, proxies /api to 8787
 - **On your phone over Wi-Fi:** `npm run dev:phone` instead of `dev:web`, then open `http://<your-Mac's-IP>:5173` (no Home Screen app or push, because that needs HTTPS).
 - **Push on desktop:** `npm run build`, then open http://localhost:8787 in Chrome and use Settings → Turn on. Service workers and push work on `localhost`.
 - **Trigger the cron by hand:** `curl "http://localhost:8787/cdn-cgi/handler/scheduled"`.
-- **Jump to a screen in dev:** `http://localhost:5173/?screen=today|affs|reminders|settings|install|moment|banner`.
+- **Jump to a screen in dev:** `http://localhost:5173/?screen=today|affs|settings|install|moment|banner`.
 
 Other commands (from the root):
 

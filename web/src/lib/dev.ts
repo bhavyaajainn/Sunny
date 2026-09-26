@@ -1,14 +1,6 @@
 // Dev-only shortcut: open http://localhost:5173/?screen=<name> to jump straight to a screen.
 // Ignored in production builds.
-export const DEV_SCREENS = [
-  'install',
-  'today',
-  'affs',
-  'reminders',
-  'settings',
-  'moment',
-  'banner',
-] as const;
+export const DEV_SCREENS = ['install', 'today', 'affs', 'settings', 'moment', 'banner'] as const;
 export type DevScreen = (typeof DEV_SCREENS)[number];
 
 export function readDevScreen(): DevScreen | null {

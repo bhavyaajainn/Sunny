@@ -15,23 +15,27 @@ export function pickAffirmation<T extends { id: number }>(
   return pool[Math.floor(rand() * pool.length)] ?? null;
 }
 
+/** What {l} says in a title, from the reminder time: "morning boost", "afternoon lift"… */
+export function labelForTime(time: string | null): string {
+  if (!time) return 'reminder';
+  const h = Number(time.split(':')[0]);
+  return h < 12 ? 'morning boost' : h < 17 ? 'afternoon lift' : 'evening glow';
+}
+
 export interface PayloadInput {
   vibe: Vibe;
   name: string;
-  /** Reminder label, used for {l}. */
-  label: string;
-  affirmation: { id: number; text: string };
+  affirmation: { id: number; text: string; time: string | null };
 }
 
 export function buildPayload(input: PayloadInput, rand: Rand = Math.random): PushData {
   const titles = VIBES[input.vibe].titles;
   const template = titles[Math.floor(rand() * titles.length)] ?? titles[0] ?? '';
-  const title = fillTitle(template, input.name, input.label);
-  const body = vibeBody(input.affirmation.text, input.vibe);
   return {
     affirmationId: input.affirmation.id,
-    title,
-    body,
+    title: fillTitle(template, input.name, labelForTime(input.affirmation.time)),
+    body: vibeBody(input.affirmation.text, input.vibe),
+    vibe: input.vibe,
     url: '/?moment=1',
   };
 }

@@ -1,15 +1,8 @@
-// A notification built from current data, for the vibe preview and the in-app banner.
+// A notification built from current data, for previews and the in-app banner.
 import { buildPayload, pickAffirmation } from '../../../shared/payload';
-import { fillTitle, VIBES } from '../../../shared/vibes';
-import type { Affirmation, PushData, Reminder, Settings } from '../../../shared/types';
-import { nextReminder } from './time';
+import type { Affirmation, PushData, Settings } from '../../../shared/types';
 
-export function makeSample(
-  settings: Settings,
-  affirmations: readonly Affirmation[],
-  reminders: readonly Reminder[],
-): PushData {
-  const label = nextReminder(reminders, new Date()).reminder?.label ?? 'reminder';
+export function makeSample(settings: Settings, affirmations: readonly Affirmation[]): PushData {
   const aff = pickAffirmation(
     affirmations.filter((a) => a.active),
     null,
@@ -17,10 +10,11 @@ export function makeSample(
   if (!aff) {
     return {
       affirmationId: null,
-      title: fillTitle(VIBES[settings.vibe].titles[0] ?? '', settings.name, label),
+      title: '☀️ Your reminder is here',
       body: 'Add an affirmation to get started.',
+      vibe: 'sunny',
       url: '/',
     };
   }
-  return buildPayload({ vibe: settings.vibe, name: settings.name, label, affirmation: aff });
+  return buildPayload({ vibe: aff.vibe, name: settings.name, affirmation: aff });
 }

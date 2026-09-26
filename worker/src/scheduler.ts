@@ -1,15 +1,8 @@
-// Every-minute cron: sends due reminders as Web Push notifications.
+// Every-minute cron: sends each affirmation at its own reminder time as a Web Push notification.
 import type { Env } from './env';
-import {
-  AFF_COLS,
-  REM_COLS,
-  getSettings,
-  toSettings,
-  type AffirmationRow,
-  type ReminderRow,
-} from './db';
+import { AFF_COLS, getSettings, toAffirmation, toSettings, type AffirmationRow } from './db';
 import { sendPush, type Subscription, type Vapid } from './push';
-import { buildPayload, pickAffirmation } from '../../shared/payload';
+import { buildPayload } from '../../shared/payload';
 import type { PushData } from '../../shared/types';
 
 /** How many minutes late a reminder may still go out (cron runs can be delayed or skipped). */
@@ -47,7 +40,7 @@ export function localNow(now: Date, timeZone: string): LocalNow {
 }
 
 export interface ReminderLike {
-  time: string;
+  time: string | null;
   days: string;
   active: boolean | number;
   last_sent_on: string | null;
@@ -58,7 +51,7 @@ export interface ReminderLike {
  * now or up to GRACE_MINUTES ago (same local day).
  */
 export function isDue(r: ReminderLike, now: LocalNow, grace = GRACE_MINUTES): boolean {
-  if (!r.active) return false;
+  if (!r.active || !r.time) return false;
   if (r.days[now.weekday] !== '1') return false;
   if (r.last_sent_on === now.date) return false;
   const [h = NaN, m = NaN] = r.time.split(':').map(Number);
@@ -124,20 +117,15 @@ export async function runScheduler(env: Env, now = new Date()): Promise<void> {
     "DELETE FROM affirmations WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-1 day')",
   ).run();
 
-  const settingsRow = await getSettings(env.DB);
-  const settings = toSettings(settingsRow);
+  const settings = toSettings(await getSettings(env.DB));
   const local = localNow(now, settings.timezone);
 
-  const { results: reminders } = await env.DB.prepare(
-    `SELECT ${REM_COLS} FROM reminders WHERE active = 1`,
-  ).all<ReminderRow>();
-  const due = reminders.filter((r) => isDue(r, local));
-  if (!due.length) return;
-
   const { results: affs } = await env.DB.prepare(
-    `SELECT ${AFF_COLS} FROM affirmations WHERE active = 1 AND deleted_at IS NULL`,
+    `SELECT ${AFF_COLS} FROM affirmations
+     WHERE active = 1 AND deleted_at IS NULL AND time IS NOT NULL`,
   ).all<AffirmationRow>();
-  if (!affs.length) return; // nothing to say yet; try again next minute within the grace window
+  const due = affs.filter((a) => isDue(a, local));
+  if (!due.length) return;
 
   const vapid = vapidFromEnv(env);
   if (!vapid) {
@@ -145,31 +133,20 @@ export async function runScheduler(env: Env, now = new Date()): Promise<void> {
     return;
   }
 
-  let lastId = settingsRow.last_affirmation_id;
-  for (const r of due) {
-    // Claim the reminder first so an overlapping run can't send it twice.
+  for (const row of due) {
+    // Claim it first so an overlapping run can't send it twice.
     const claim = await env.DB.prepare(
-      'UPDATE reminders SET last_sent_on = ? WHERE id = ? AND (last_sent_on IS NULL OR last_sent_on != ?)',
+      'UPDATE affirmations SET last_sent_on = ? WHERE id = ? AND (last_sent_on IS NULL OR last_sent_on != ?)',
     )
-      .bind(local.date, r.id, local.date)
+      .bind(local.date, row.id, local.date)
       .run();
     if (claim.meta.changes !== 1) continue;
 
-    const aff = pickAffirmation(affs, lastId);
-    if (!aff) continue;
-    lastId = aff.id;
-    const data = buildPayload({
-      vibe: settings.vibe,
-      name: settings.name,
-      label: r.label,
-      affirmation: aff,
-    });
+    const aff = toAffirmation(row);
+    const data = buildPayload({ vibe: aff.vibe, name: settings.name, affirmation: aff });
     const res = await pushToAll(env, vapid, data);
     console.log(
-      `Reminder ${r.id} (${r.time}): sent ${res.sent}, failed ${res.failed}, removed ${res.removed}`,
+      `Affirmation ${aff.id} (${aff.time}): sent ${res.sent}, failed ${res.failed}, removed ${res.removed}`,
     );
   }
-  await env.DB.prepare('UPDATE settings SET last_affirmation_id = ? WHERE id = 1')
-    .bind(lastId)
-    .run();
 }

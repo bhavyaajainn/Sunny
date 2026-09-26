@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isDue, localNow, type ReminderLike } from '../src/scheduler';
-import { buildPayload, pickAffirmation } from '../../shared/payload';
+import { buildPayload, labelForTime, pickAffirmation } from '../../shared/payload';
 
 // 2026-09-26 is a Saturday.
 const utc = (iso: string) => new Date(iso);
@@ -57,6 +57,10 @@ describe('isDue', () => {
     expect(isDue({ ...base, days: '0000001' }, at('2026-09-27T02:00:00Z'))).toBe(true); // Sun
   });
 
+  it('skips affirmations without a time', () => {
+    expect(isDue({ ...base, time: null }, at('2026-09-26T02:00:00Z'))).toBe(false);
+  });
+
   it('skips inactive reminders', () => {
     expect(isDue({ ...base, active: 0 }, at('2026-09-26T02:00:00Z'))).toBe(false);
     expect(isDue({ ...base, active: false }, at('2026-09-26T02:00:00Z'))).toBe(false);
@@ -64,8 +68,8 @@ describe('isDue', () => {
 });
 
 describe('payload builder', () => {
-  const calmAff = { id: 1, text: 'I choose calm over rush.' };
-  const goodAff = { id: 2, text: 'Good things are on their way to me.' };
+  const calmAff = { id: 1, text: 'I choose calm over rush.', time: '21:30' };
+  const goodAff = { id: 2, text: 'Good things are on their way to me.', time: '07:30' };
   const affs = [calmAff, goodAff];
 
   it('avoids the last affirmation when there is another', () => {
@@ -76,29 +80,32 @@ describe('payload builder', () => {
 
   it('fills the title template and appends the vibe emoji', () => {
     const p = buildPayload(
-      { vibe: 'sunny', name: 'Bhavya', label: 'Morning boost', affirmation: goodAff },
+      { vibe: 'sunny', name: 'Bhavya', affirmation: goodAff },
       () => 0, // first template
     );
     expect(p).toEqual({
       affirmationId: 2,
       title: '☀️ Your morning boost is here',
       body: 'Good things are on their way to me. ☀️',
+      vibe: 'sunny',
       url: '/?moment=1',
     });
   });
 
   it('falls back to "friend" and uses each vibe', () => {
-    const hype = buildPayload(
-      { vibe: 'hype', name: '', label: 'x', affirmation: calmAff },
-      () => 0,
-    );
+    const hype = buildPayload({ vibe: 'hype', name: '', affirmation: calmAff }, () => 0);
     expect(hype.title).toBe("🔥 Hey friend, this one's for you!");
     expect(hype.body.endsWith('💪')).toBe(true);
-    const calm = buildPayload(
-      { vibe: 'calm', name: 'B', label: 'x', affirmation: calmAff },
-      () => 0.99,
-    );
+    const calm = buildPayload({ vibe: 'calm', name: 'B', affirmation: calmAff }, () => 0.99);
     expect(calm.title).toBe('💛 Just for you, B');
     expect(calm.body.endsWith('🌿')).toBe(true);
+    expect(calm.vibe).toBe('calm');
+  });
+
+  it('names {l} from the time of day', () => {
+    expect(labelForTime('07:30')).toBe('morning boost');
+    expect(labelForTime('13:00')).toBe('afternoon lift');
+    expect(labelForTime('21:30')).toBe('evening glow');
+    expect(labelForTime(null)).toBe('reminder');
   });
 });

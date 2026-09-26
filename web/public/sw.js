@@ -153,6 +153,7 @@ self.addEventListener('notificationclick', (event) => {
         a: data.affirmationId == null ? '' : String(data.affirmationId),
         t: data.title || '',
         b: data.body || '',
+        v: data.vibe || '',
       });
       await self.clients.openWindow('/?' + q.toString());
     })(),

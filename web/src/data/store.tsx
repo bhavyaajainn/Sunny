@@ -11,7 +11,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { Affirmation, Reminder, Settings } from '../../../shared/types';
+import type { Affirmation, Settings } from '../../../shared/types';
+import type { Vibe } from '../../../shared/vibes';
 import type { IconName } from '../../../shared/icons';
 import { useToast } from '../components/Toast';
 import { ApiError, api, errorMessage } from './api';
@@ -25,11 +26,10 @@ export type BootState =
 export interface AffirmationInput {
   text: string;
   icon: IconName;
-}
-export interface ReminderInput {
+  /** Reminder time, 'HH:MM'. */
   time: string;
-  label: string;
   days: string;
+  vibe: Vibe;
 }
 
 export interface Store {
@@ -37,7 +37,6 @@ export interface Store {
   retryBoot(): void;
   settings: Settings;
   affirmations: Affirmation[];
-  reminders: Reminder[];
   notif: NotifState;
 
   enableNotifications(): Promise<NotifState>;
@@ -45,13 +44,10 @@ export interface Store {
   addAffirmation(input: AffirmationInput): Promise<boolean>;
   updateAffirmation(
     id: number,
-    patch: Partial<Pick<Affirmation, 'text' | 'icon' | 'active'>>,
+    patch: Partial<AffirmationInput & { active: boolean }>,
   ): Promise<boolean>;
   deleteAffirmation(id: number): Promise<boolean>;
   restoreAffirmation(id: number): Promise<boolean>;
-  addReminder(input: ReminderInput): Promise<boolean>;
-  updateReminder(id: number, patch: Partial<ReminderInput & { active: boolean }>): Promise<boolean>;
-  deleteReminder(id: number): Promise<boolean>;
   sendTest(): Promise<boolean>;
 }
 
@@ -65,7 +61,6 @@ export function useStore(): Store {
 
 const DEFAULT_SETTINGS: Settings = {
   name: '',
-  vibe: 'sunny',
   timezone: 'Asia/Kolkata',
   theme: 'system',
 };
@@ -81,14 +76,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [bootNonce, setBootNonce] = useState(0);
   const [settings, setSettings] = useState<Settings>(initial?.settings ?? DEFAULT_SETTINGS);
   const [affirmations, setAffirmations] = useState<Affirmation[]>(initial?.affirmations ?? []);
-  const [reminders, setReminders] = useState<Reminder[]>(initial?.reminders ?? []);
   const [notif, setNotif] = useState<NotifState>(notifState);
 
   // Latest values for use inside async actions (synced after each commit).
-  const latest = useRef({ settings, affirmations, reminders });
+  const latest = useRef({ settings, affirmations });
   useEffect(() => {
-    latest.current = { settings, affirmations, reminders };
-  }, [settings, affirmations, reminders]);
+    latest.current = { settings, affirmations };
+  }, [settings, affirmations]);
 
   // Where a deleted affirmation was, so Undo puts it back in the same spot.
   const deletedAt = useRef(new Map<number, number>());
@@ -99,15 +93,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const [s, a, r] = await Promise.all([
+        const [s, a] = await Promise.all([
           api<Settings>('GET', '/settings'),
           api<Affirmation[]>('GET', '/affirmations'),
-          api<Reminder[]>('GET', '/reminders'),
         ]);
         if (cancelled) return;
         setSettings(s);
         setAffirmations(a);
-        setReminders(r);
         setBoot({ kind: 'ready' });
       } catch (err) {
         if (cancelled) return;
@@ -144,10 +136,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       writeCache({
         settings,
         affirmations: affirmations.filter((a) => a.id > 0),
-        reminders: reminders.filter((r) => r.id > 0),
       });
     }
-  }, [boot.kind, settings, affirmations, reminders]);
+  }, [boot.kind, settings, affirmations]);
 
   // Must be called straight from a tap: iOS only shows the prompt for a user gesture.
   const enableNotifications = useCallback(async (): Promise<NotifState> => {
@@ -295,57 +286,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [toast],
   );
 
-  // ---------- Reminders ----------
-
-  const replaceRem = (id: number, next: Reminder) =>
-    setReminders((list) => list.map((r) => (r.id === id ? next : r)));
-
-  const addReminder = useCallback(
-    async (input: ReminderInput) => {
-      const id = tempId.current--;
-      setReminders((list) => [...list, { id, ...input, active: true }]);
-      return attempt(
-        async () => replaceRem(id, await api<Reminder>('POST', '/reminders', input)),
-        () => setReminders((list) => list.filter((r) => r.id !== id)),
-      );
-    },
-    [attempt],
-  );
-
-  const updateReminder = useCallback<Store['updateReminder']>(
-    async (id, patch) => {
-      const prev = latest.current.reminders.find((r) => r.id === id);
-      if (!prev) return false;
-      if (id < 0) {
-        toast(STILL_SAVING);
-        return false;
-      }
-      replaceRem(id, { ...prev, ...patch });
-      return attempt(
-        async () => replaceRem(id, await api<Reminder>('PATCH', `/reminders/${id}`, patch)),
-        () => replaceRem(id, prev),
-      );
-    },
-    [attempt, toast],
-  );
-
-  const deleteReminder = useCallback(
-    async (id: number) => {
-      const prev = latest.current.reminders.find((r) => r.id === id);
-      if (!prev) return false;
-      if (id < 0) {
-        toast(STILL_SAVING);
-        return false;
-      }
-      setReminders((list) => list.filter((r) => r.id !== id));
-      return attempt(
-        () => api<undefined>('DELETE', `/reminders/${id}`),
-        () => setReminders((list) => [...list, prev]),
-      );
-    },
-    [attempt, toast],
-  );
-
   // ---------- Push ----------
 
   const sendTest = useCallback(async () => {
@@ -364,7 +304,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       retryBoot,
       settings,
       affirmations,
-      reminders,
       notif,
       enableNotifications,
       updateSettings,
@@ -372,9 +311,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateAffirmation,
       deleteAffirmation,
       restoreAffirmation,
-      addReminder,
-      updateReminder,
-      deleteReminder,
       sendTest,
     }),
     [
@@ -382,7 +318,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       retryBoot,
       settings,
       affirmations,
-      reminders,
       notif,
       enableNotifications,
       updateSettings,
@@ -390,9 +325,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateAffirmation,
       deleteAffirmation,
       restoreAffirmation,
-      addReminder,
-      updateReminder,
-      deleteReminder,
       sendTest,
     ],
   );

@@ -1,4 +1,4 @@
-export type Tab = 'today' | 'affs' | 'reminders' | 'settings';
+export type Tab = 'today' | 'affs' | 'settings';
 
 const common = {
   viewBox: '0 0 24 24',
@@ -29,16 +29,6 @@ const TABS: ReadonlyArray<{ id: Tab; label: string; icon: React.JSX.Element }> =
         <circle cx="4" cy="6" r="1" />
         <circle cx="4" cy="12" r="1" />
         <circle cx="4" cy="18" r="1" />
-      </svg>
-    ),
-  },
-  {
-    id: 'reminders',
-    label: 'Reminders',
-    icon: (
-      <svg {...common} strokeLinejoin="round">
-        <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
-        <path d="M10 21h4" />
       </svg>
     ),
   },

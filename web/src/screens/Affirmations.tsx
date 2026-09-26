@@ -1,13 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
-import { Switch, TRASH_SVG } from '../components/bits';
+import { NotifCard, Seg, Switch, TRASH_SVG } from '../components/bits';
 import { useToast } from '../components/Toast';
-import { ICON_NAMES, type IconName } from '../../../shared/icons';
-import { AFFIRMATION_MAX, type Affirmation } from '../../../shared/types';
+import { ICON_NAMES, timeIcon, type IconName } from '../../../shared/icons';
+import { buildPayload } from '../../../shared/payload';
+import { AFFIRMATION_MAX, DAY_LETTERS, DAY_NAMES, type Affirmation } from '../../../shared/types';
+import { VIBES, VIBE_NAMES, type Vibe } from '../../../shared/vibes';
 import { useStore } from '../data/store';
+import { formatDays, formatTime } from '../lib/time';
 
 const QUICK_EMOJI = ['☀️', '💪', '✨', '🌻', '🔥', '🧘'];
+const VIBE_OPTIONS = VIBE_NAMES.map((v) => ({ value: v, label: VIBES[v].label }));
+const VIBE_EMOJI: Record<Vibe, string> = { hype: '🔥', sunny: '☀️', calm: '🌙' };
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export function AffirmationsScreen() {
   const { affirmations, updateAffirmation, deleteAffirmation, restoreAffirmation } = useStore();
@@ -34,7 +40,8 @@ export function AffirmationsScreen() {
           <Icon name="sprout" className="h" />
         </h2>
         <p className="sub">
-          {affirmations.length} saved, {inRotation} in rotation. Tap one to edit.
+          {affirmations.length} saved, {inRotation} on. Each one arrives at its own time. Tap one to
+          edit.
         </p>
         {affirmations.length ? (
           <div className="list aff-list">
@@ -47,14 +54,29 @@ export function AffirmationsScreen() {
                   type="button"
                   className="txt"
                   onClick={() => setEditing(a)}
-                  aria-label={`Edit: ${a.text}`}
+                  aria-label={`Edit: ${a.text}. ${
+                    a.time
+                      ? `Reminder ${formatTime(a.time)}, ${formatDays(a.days)}, ${a.vibe} vibe`
+                      : 'No reminder time yet'
+                  }`}
                 >
                   {a.text}
+                  {a.time ? (
+                    <span className="meta">
+                      <Icon name={timeIcon(a.time)} />
+                      <span>
+                        <span className="nw">{formatTime(a.time)}</span> ·{' '}
+                        <span className="nw">{formatDays(a.days)}</span> · {VIBE_EMOJI[a.vibe]}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="meta unset">⏰ Set a time</span>
+                  )}
                 </button>
                 <div className="side">
                   <Switch
                     checked={a.active}
-                    label="Include in rotation"
+                    label="Affirmation on"
                     onChange={(active) => void updateAffirmation(a.id, { active })}
                   />
                   <button
@@ -108,16 +130,34 @@ function AffirmationSheet({
   onClose: () => void;
   onDelete: (a: Affirmation) => void;
 }) {
-  const { addAffirmation, updateAffirmation } = useStore();
+  const { settings, addAffirmation, updateAffirmation } = useStore();
   const toast = useToast();
   const [text, setText] = useState(aff?.text ?? '');
   const [icon, setIcon] = useState<IconName>(aff?.icon ?? defaultIcon);
+  // New ones start at 9:00 AM; older ones made before times existed start empty.
+  const [time, setTime] = useState(aff ? (aff.time ?? '') : '09:00');
+  const [days, setDays] = useState(aff?.days ?? '1111111');
+  const [vibe, setVibe] = useState<Vibe>(aff?.vibe ?? 'sunny');
   const ta = useRef<HTMLTextAreaElement>(null);
+  const timeIn = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (aff) return; // editing: don't pop the keyboard over the time and vibe
     const t = setTimeout(() => ta.current?.focus(), 50);
     return () => clearTimeout(t);
-  }, []);
+  }, [aff]);
+
+  const toggleDay = (i: number) =>
+    setDays((d) => d.slice(0, i) + (d[i] === '1' ? '0' : '1') + d.slice(i + 1));
+
+  const preview = buildPayload(
+    {
+      vibe,
+      name: settings.name,
+      affirmation: { id: 0, text: text.trim() || 'Your affirmation', time: time || null },
+    },
+    () => 0,
+  );
 
   const save = async () => {
     const v = text.trim();
@@ -126,11 +166,19 @@ function AffirmationSheet({
       toast('Write a few words first, then tap Save.');
       return;
     }
+    if (!TIME_RE.test(time)) {
+      timeIn.current?.focus();
+      toast('Pick a time for this affirmation, then tap Save.');
+      return;
+    }
+    if (!days.includes('1')) {
+      toast('Pick at least one day, then tap Save.');
+      return;
+    }
+    const input = { text: v, icon, time, days, vibe };
     onClose();
-    const ok = aff
-      ? await updateAffirmation(aff.id, { text: v, icon })
-      : await addAffirmation({ text: v, icon });
-    if (ok) toast(aff ? 'Affirmation saved' : 'Affirmation added 🌱');
+    const ok = aff ? await updateAffirmation(aff.id, input) : await addAffirmation(input);
+    if (ok) toast(aff ? 'Affirmation saved' : `Added 🌱 See you at ${formatTime(time)}`);
   };
 
   return (
@@ -172,6 +220,47 @@ function AffirmationSheet({
           </button>
         ))}
       </div>
+
+      <label className="lbl" htmlFor="aff-time">
+        Remind me at
+      </label>
+      <input
+        ref={timeIn}
+        id="aff-time"
+        className="field"
+        type="time"
+        required
+        value={time}
+        onChange={(e) => setTime(e.target.value)}
+      />
+      <div className="daypick" role="group" aria-label="Days">
+        {DAY_LETTERS.map((d, i) => (
+          <button
+            key={i}
+            type="button"
+            aria-pressed={days[i] === '1'}
+            aria-label={DAY_NAMES[i]}
+            onClick={() => toggleDay(i)}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+
+      <span className="lbl" id="aff-vibe">
+        Vibe
+      </span>
+      <Seg
+        className="vibe-seg"
+        label="Vibe"
+        options={VIBE_OPTIONS}
+        value={vibe}
+        onChange={setVibe}
+      />
+      <div className="sheet-preview" aria-label="Notification preview">
+        <NotifCard title={preview.title} body={preview.body} />
+      </div>
+
       <div className="row">
         {aff ? (
           <button type="button" className="btn ghost" onClick={() => onDelete(aff)}>

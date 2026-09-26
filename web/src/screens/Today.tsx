@@ -30,23 +30,23 @@ export function TodayScreen({
   onAnother,
   felt,
   onFelt,
-  onOpenReminders,
+  onOpenList,
 }: {
   currentId: number | null;
   swapKey: number;
   onAnother: (id: number) => void;
   felt: number;
   onFelt: () => void;
-  onOpenReminders: () => void;
+  onOpenList: () => void;
 }) {
-  const { settings, affirmations, reminders } = useStore();
+  const { settings, affirmations } = useStore();
   const now = useNow();
   const card = useRef<HTMLDivElement>(null);
   const [bursts, fire] = useBursts();
 
   const list = affirmations.filter((a) => a.active);
   const current = list.find((a) => a.id === currentId) ?? list[0] ?? null;
-  const next = nextReminder(reminders, now);
+  const next = nextReminder(affirmations, now);
 
   const another = () => {
     const others = list.filter((a) => a.id !== current?.id);
@@ -90,8 +90,8 @@ export function TodayScreen({
         {bursts}
       </div>
 
-      <button type="button" className="nextrow" onClick={onOpenReminders}>
-        <Icon name={next.reminder ? timeIcon(next.reminder.time) : 'cloud'} />
+      <button type="button" className="nextrow" onClick={onOpenList}>
+        <Icon name={next.affirmation?.time ? timeIcon(next.affirmation.time) : 'cloud'} />
         <span style={{ flex: 1 }}>
           <small>Next reminder</small>
           <span className="t">{next.text}</span>

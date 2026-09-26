@@ -1,20 +1,20 @@
 // Last-known server data, so the app opens instantly and can be read offline.
-import type { Affirmation, Reminder, Settings } from '../../../shared/types';
+import type { Affirmation, Settings } from '../../../shared/types';
 
-const KEY = 'sunny.cache.v1';
+const KEY = 'sunny.cache.v2';
 
 export interface Snapshot {
   settings: Settings;
   affirmations: Affirmation[];
-  reminders: Reminder[];
 }
 
 export function readCache(): Snapshot | null {
   try {
+    localStorage.removeItem('sunny.cache.v1'); // shape before per-affirmation reminders
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const v = JSON.parse(raw) as Partial<Snapshot>;
-    if (!v.settings || !Array.isArray(v.affirmations) || !Array.isArray(v.reminders)) return null;
+    if (!v.settings || !Array.isArray(v.affirmations)) return null;
     return v as Snapshot;
   } catch {
     return null;

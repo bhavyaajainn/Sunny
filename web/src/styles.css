@@ -388,6 +388,28 @@ h2 {
 .item.off .txt {
   opacity: 0.45;
 }
+.item .txt .meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.item .txt .meta .ico {
+  width: 18px;
+  height: 18px;
+}
+.item .txt .meta > span {
+  line-height: 1.3;
+}
+.nw {
+  white-space: nowrap;
+}
+.item .txt .meta.unset {
+  color: var(--flame);
+}
 .switch {
   flex: none;
   width: 52px;
@@ -772,6 +794,18 @@ textarea.field {
 }
 .sheet .row .btn {
   flex: 1;
+}
+.sheet .lbl {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  margin: 4px 0 8px;
+}
+.sheet-preview {
+  margin-bottom: 18px;
+}
+.sheet .seg button[aria-pressed='true'] {
+  background: var(--card);
 }
 
 /* ---------- Toast ---------- */

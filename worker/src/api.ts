@@ -2,20 +2,18 @@
 import type { Env } from './env';
 import {
   AFF_COLS,
-  REM_COLS,
+  SETTINGS_COLS,
   getSettings,
   toAffirmation,
-  toReminder,
   toSettings,
   type AffirmationRow,
-  type ReminderRow,
   type SettingsRow,
 } from './db';
 import { HttpError, errorResponse, json, noContent, readJson, setClause } from './http';
 import * as v from './validate';
 import { pushToAll, vapidFromEnv } from './scheduler';
 import { buildPayload, pickAffirmation } from '../../shared/payload';
-import type { Affirmation, Reminder, Settings } from '../../shared/types';
+import type { Affirmation, Settings } from '../../shared/types';
 
 interface Ctx {
   env: Env;
@@ -39,7 +37,7 @@ const patchSettings: Handler = async ({ env, request }) => {
   const { sql, values } = setClause({ ...patch });
   const row = await env.DB.prepare(
     `UPDATE settings SET ${sql} WHERE id = 1
-     RETURNING name, vibe, timezone, theme, last_affirmation_id`,
+     RETURNING ${SETTINGS_COLS}`,
   )
     .bind(...values)
     .first<SettingsRow>();
@@ -61,14 +59,14 @@ const listAffirmations: Handler = async ({ env }) => {
 };
 
 const createAffirmation: Handler = async ({ env, request }) => {
-  const { text, icon } = check(v.affirmationCreate(await readJson(request)));
+  const a = check(v.affirmationCreate(await readJson(request)));
   // New ones go to the top of the list.
   const row = await env.DB.prepare(
-    `INSERT INTO affirmations (text, icon, position)
-     VALUES (?, ?, (SELECT COALESCE(MIN(position), 0) - 1 FROM affirmations))
+    `INSERT INTO affirmations (text, icon, time, days, vibe, position)
+     VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MIN(position), 0) - 1 FROM affirmations))
      RETURNING ${AFF_COLS}`,
   )
-    .bind(text, icon)
+    .bind(a.text, a.icon, a.time, a.days, a.vibe)
     .first<AffirmationRow>();
   if (!row) throw new Error('insert returned nothing');
   return json<Affirmation>(toAffirmation(row), 201);
@@ -79,9 +77,12 @@ const notFoundAff = () =>
 
 const patchAffirmation: Handler = async ({ env, request, id }) => {
   const patch = check(v.affirmationPatch(await readJson(request)));
+  // A new time or new days means today's reminder may still be due: clear the dedupe marker.
+  const reset = patch.time !== undefined || patch.days !== undefined;
   const { sql, values } = setClause({ ...patch });
   const row = await env.DB.prepare(
-    `UPDATE affirmations SET ${sql} WHERE id = ? AND deleted_at IS NULL RETURNING ${AFF_COLS}`,
+    `UPDATE affirmations SET ${sql}${reset ? ', last_sent_on = NULL' : ''}
+     WHERE id = ? AND deleted_at IS NULL RETURNING ${AFF_COLS}`,
   )
     .bind(...values, id)
     .first<AffirmationRow>();
@@ -108,50 +109,6 @@ const restoreAffirmation: Handler = async ({ env, id }) => {
     .first<AffirmationRow>();
   if (!row) throw new HttpError(404, "That affirmation can't be restored any more.");
   return json<Affirmation>(toAffirmation(row));
-};
-
-// ---------- Reminders ----------
-
-const listReminders: Handler = async ({ env }) => {
-  const { results } = await env.DB.prepare(
-    `SELECT ${REM_COLS} FROM reminders ORDER BY time, id`,
-  ).all<ReminderRow>();
-  return json<Reminder[]>(results.map(toReminder));
-};
-
-const createReminder: Handler = async ({ env, request }) => {
-  const r = check(v.reminderCreate(await readJson(request)));
-  const row = await env.DB.prepare(
-    `INSERT INTO reminders (time, label, days) VALUES (?, ?, ?) RETURNING ${REM_COLS}`,
-  )
-    .bind(r.time, r.label, r.days)
-    .first<ReminderRow>();
-  if (!row) throw new Error('insert returned nothing');
-  return json<Reminder>(toReminder(row), 201);
-};
-
-const notFoundRem = () =>
-  new HttpError(404, 'That reminder no longer exists. Reopen the app to refresh.');
-
-const patchReminder: Handler = async ({ env, request, id }) => {
-  const patch = check(v.reminderPatch(await readJson(request)));
-  // A new time or new days means today's reminder may still be due: clear the dedupe marker.
-  const reset = patch.time !== undefined || patch.days !== undefined;
-  const { sql, values } = setClause({ ...patch });
-  const row = await env.DB.prepare(
-    `UPDATE reminders SET ${sql}${reset ? ', last_sent_on = NULL' : ''} WHERE id = ?
-     RETURNING ${REM_COLS}`,
-  )
-    .bind(...values, id)
-    .first<ReminderRow>();
-  if (!row) throw notFoundRem();
-  return json<Reminder>(toReminder(row));
-};
-
-const deleteReminder: Handler = async ({ env, id }) => {
-  const res = await env.DB.prepare('DELETE FROM reminders WHERE id = ?').bind(id).run();
-  if (res.meta.changes !== 1) throw notFoundRem();
-  return noContent();
 };
 
 // ---------- Push ----------
@@ -211,13 +168,8 @@ const testPush: Handler = async ({ env }) => {
   if (!aff) {
     throw new HttpError(409, 'Turn on at least one affirmation first, then send a test.');
   }
-  const settings = toSettings(s);
-  const data = buildPayload({
-    vibe: settings.vibe,
-    name: settings.name,
-    label: 'reminder',
-    affirmation: aff,
-  });
+  const vibe = toAffirmation(aff).vibe;
+  const data = buildPayload({ vibe, name: s.name, affirmation: aff });
   const res = await pushToAll(env, vapid, data);
   if (res.sent === 0) {
     throw new HttpError(
@@ -255,10 +207,6 @@ const routes: Route[] = [
     pattern: new RegExp(`^/api/affirmations/${ID}/restore$`),
     handler: restoreAffirmation,
   },
-  { method: 'GET', pattern: /^\/api\/reminders$/, handler: listReminders },
-  { method: 'POST', pattern: /^\/api\/reminders$/, handler: createReminder },
-  { method: 'PATCH', pattern: new RegExp(`^/api/reminders/${ID}$`), handler: patchReminder },
-  { method: 'DELETE', pattern: new RegExp(`^/api/reminders/${ID}$`), handler: deleteReminder },
   { method: 'GET', pattern: /^\/api\/push\/public-key$/, handler: publicKey },
   { method: 'POST', pattern: /^\/api\/push\/subscribe$/, handler: subscribe },
   { method: 'POST', pattern: /^\/api\/push\/test$/, handler: testPush },

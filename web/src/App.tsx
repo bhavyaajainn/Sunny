@@ -8,22 +8,21 @@ import type { DevScreen } from './lib/dev';
 import { addFelt, readFelt } from './lib/felt';
 import { makeSample } from './lib/sample';
 import { momentFromUrl, toPushData } from './lib/moment';
-import { useThemeAndVibe } from './lib/theme';
+import { useTheme } from './lib/theme';
 import { AffirmationsScreen } from './screens/Affirmations';
 import { Banner, Moment } from './screens/Moment';
 import { InstallScreen } from './screens/InstallGuide';
-import { RemindersScreen } from './screens/Reminders';
 import { SettingsScreen } from './screens/Settings';
 import { TodayScreen } from './screens/Today';
 
 type Page = 'install-guide' | null;
 
-const TAB_SCREENS: readonly string[] = ['today', 'affs', 'reminders', 'settings'];
+const TAB_SCREENS: readonly string[] = ['today', 'affs', 'settings'];
 
 /** Waits for the first load, then shows the app. */
 export function App({ dev }: { dev: DevScreen | null }) {
   const { boot, retryBoot, settings } = useStore();
-  useThemeAndVibe(settings.theme, settings.vibe);
+  useTheme(settings.theme);
 
   if (boot.kind === 'loading') {
     return (
@@ -54,7 +53,7 @@ export function App({ dev }: { dev: DevScreen | null }) {
 
 function Shell({ dev }: { dev: DevScreen | null }) {
   const store = useStore();
-  const { settings, affirmations, reminders, notif } = store;
+  const { settings, affirmations, notif } = store;
   const toast = useToast();
 
   const [tab, setTab] = useState<Tab>(dev && TAB_SCREENS.includes(dev) ? (dev as Tab) : 'today');
@@ -63,11 +62,11 @@ function Shell({ dev }: { dev: DevScreen | null }) {
   const [felt, setFelt] = useState(readFelt);
   const [moment, setMoment] = useState<PushData | null>(() =>
     dev === 'moment'
-      ? makeSample(settings, affirmations, reminders)
-      : momentFromUrl(location.search, affirmations, settings.vibe),
+      ? makeSample(settings, affirmations)
+      : momentFromUrl(location.search, affirmations),
   );
   const [banner, setBanner] = useState<{ key: number; data: PushData } | null>(() =>
-    dev === 'banner' ? { key: 0, data: makeSample(settings, affirmations, reminders) } : null,
+    dev === 'banner' ? { key: 0, data: makeSample(settings, affirmations) } : null,
   );
 
   const goTab = useCallback((t: Tab) => {
@@ -111,10 +110,6 @@ function Shell({ dev }: { dev: DevScreen | null }) {
     if (await store.sendTest()) toast('Sent! Check your lock screen in a few seconds.');
   }, [notif, store, toast]);
 
-  const showBanner = useCallback(() => {
-    setBanner({ key: Date.now(), data: makeSample(settings, affirmations, reminders) });
-  }, [settings, affirmations, reminders]);
-
   const hideBanner = useCallback(() => setBanner(null), []);
 
   const openMoment = useCallback((data: PushData) => {
@@ -148,13 +143,10 @@ function Shell({ dev }: { dev: DevScreen | null }) {
             onAnother={(id) => setToday((t) => ({ id, swap: t.swap + 1 }))}
             felt={felt}
             onFelt={() => setFelt(addFelt())}
-            onOpenReminders={() => goTab('reminders')}
+            onOpenList={() => goTab('affs')}
           />
         )}
         {tab === 'affs' && <AffirmationsScreen />}
-        {tab === 'reminders' && (
-          <RemindersScreen onSendTest={() => void sendTest()} onShowBanner={showBanner} />
-        )}
         {tab === 'settings' && (
           <SettingsScreen
             onSendTest={() => void sendTest()}
