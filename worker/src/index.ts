@@ -1,6 +1,7 @@
 import type { Env } from './env';
 import { handleApi } from './api';
 import { errorResponse } from './http';
+import { runScheduler } from './scheduler';
 
 export default {
   async fetch(request, env): Promise<Response> {
@@ -20,7 +21,11 @@ export default {
     return env.ASSETS.fetch(request);
   },
 
-  async scheduled(_controller, _env, _ctx): Promise<void> {
-    // Reminder delivery is implemented in phase 5.
+  async scheduled(controller, env, ctx): Promise<void> {
+    ctx.waitUntil(
+      runScheduler(env, new Date(controller.scheduledTime)).catch((err: unknown) =>
+        console.error('Scheduler failed', err),
+      ),
+    );
   },
 } satisfies ExportedHandler<Env>;

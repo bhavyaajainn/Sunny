@@ -68,8 +68,8 @@ export function SettingsScreen({
         )}
         {notif === 'unsupported' && (
           <p className="hint">
-            Notifications need iOS 16.4 or newer, and Sunny must be opened from its Home Screen
-            icon.
+            To get notifications, add Sunny to your Home Screen (Install guide below) and open it
+            from the icon. Needs iOS 16.4 or newer.
           </p>
         )}
         <div className="line">

@@ -1,0 +1,15 @@
+# Cloudflare Workers static-asset headers.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+
+# Always check for a new service worker and manifest.
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache
+
+# Hashed build output never changes.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

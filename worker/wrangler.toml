@@ -26,5 +26,5 @@ crons = ["* * * * *"]
 [vars]
 # From `node scripts/generate-vapid.mjs`. The private key is a secret:
 #   npx wrangler secret put VAPID_PRIVATE_KEY
-VAPID_PUBLIC_KEY = ""
-VAPID_SUBJECT = "mailto:you@example.com"
+VAPID_PUBLIC_KEY = "BCX9EchJGlh0aai7XKxhP5NZ9v_0IcXXMuPcIGagDh-YDviEYR0Pa6tB0XGLlLD7uaIhdDIoDwQAYuv65tcwMTE"
+VAPID_SUBJECT = "https://sunny.sunny-worker.workers.dev"

@@ -8,7 +8,7 @@
     "db:migrate:local": "wrangler d1 migrations apply sunny --local",
     "db:migrate:remote": "wrangler d1 migrations apply sunny --remote",
     "db:reset:local": "rm -rf .wrangler/state/v3/d1 && wrangler d1 migrations apply sunny --local",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test",
     "test": "vitest run"
   },
   "devDependencies": {

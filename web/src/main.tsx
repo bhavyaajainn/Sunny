@@ -4,7 +4,10 @@ import { App } from './App';
 import { ToastProvider } from './components/Toast';
 import { StoreProvider } from './data/store';
 import { readDevScreen } from './lib/dev';
+import { registerServiceWorker } from './lib/push';
 import './styles.css';
+
+registerServiceWorker();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element in index.html');

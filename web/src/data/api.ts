@@ -52,7 +52,7 @@ export async function api<T>(
 }
 
 export function errorMessage(err: unknown): string {
-  return err instanceof ApiError
-    ? err.message
-    : 'Something unexpected went wrong. Reload the app and try again.';
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error && err.message) return `${err.message}. Reload the app and try again.`;
+  return 'Something unexpected went wrong. Reload the app and try again.';
 }

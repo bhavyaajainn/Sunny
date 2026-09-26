@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { TabBar, type Tab } from './components/TabBar';
 import { Sun } from './components/bits';
 import { useToast } from './components/Toast';
@@ -7,6 +7,7 @@ import { useStore } from './data/store';
 import type { DevScreen } from './lib/dev';
 import { addFelt, readFelt } from './lib/felt';
 import { makeSample } from './lib/sample';
+import { momentFromUrl, toPushData } from './lib/moment';
 import { useThemeAndVibe } from './lib/theme';
 import { AffirmationsScreen } from './screens/Affirmations';
 import { Banner, Moment } from './screens/Moment';
@@ -61,7 +62,9 @@ function Shell({ dev }: { dev: DevScreen | null }) {
   const [today, setToday] = useState<{ id: number | null; swap: number }>({ id: null, swap: 0 });
   const [felt, setFelt] = useState(readFelt);
   const [moment, setMoment] = useState<PushData | null>(() =>
-    dev === 'moment' ? makeSample(settings, affirmations, reminders) : null,
+    dev === 'moment'
+      ? makeSample(settings, affirmations, reminders)
+      : momentFromUrl(location.search, affirmations, settings.vibe),
   );
   const [banner, setBanner] = useState<{ key: number; data: PushData } | null>(() =>
     dev === 'banner' ? { key: 0, data: makeSample(settings, affirmations, reminders) } : null,
@@ -72,9 +75,37 @@ function Shell({ dev }: { dev: DevScreen | null }) {
     setTab(t);
   }, []);
 
+  // Launched from a notification: clean the URL so a reload doesn't reopen the Moment.
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('moment')) history.replaceState(null, '', '/');
+  }, []);
+
+  // Messages from the service worker: a reminder arrived while open, or a notification was tapped.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMessage = (e: MessageEvent<unknown>) => {
+      const msg = e.data as { type?: unknown } | null;
+      const data = toPushData(msg);
+      if (!data || !msg) return;
+      if (msg.type === 'reminder') setBanner({ key: Date.now(), data });
+      else if (msg.type === 'open-moment') {
+        setBanner(null);
+        setMoment(data);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, []);
+
   const sendTest = useCallback(async () => {
+    if (notif === 'unsupported') {
+      toast(
+        'Notifications need Sunny opened from its Home Screen icon. See Settings → Install guide.',
+      );
+      return;
+    }
     if (notif !== 'granted') {
-      toast('Turn on notifications first. Tap "Turn on" in Settings.');
+      toast('Turn on notifications first: Settings → Notifications → Turn on.');
       return;
     }
     if (await store.sendTest()) toast('Sent! Check your lock screen in a few seconds.');

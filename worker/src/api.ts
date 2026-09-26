@@ -13,6 +13,8 @@ import {
 } from './db';
 import { HttpError, errorResponse, json, noContent, readJson, setClause } from './http';
 import * as v from './validate';
+import { pushToAll, vapidFromEnv } from './scheduler';
+import { buildPayload, pickAffirmation } from '../../shared/payload';
 import type { Affirmation, Reminder, Settings } from '../../shared/types';
 
 interface Ctx {
@@ -175,9 +177,57 @@ const subscribe: Handler = async ({ env, request }) => {
   return noContent();
 };
 
-const testPush: Handler = async () => {
-  // Implemented in phase 5 (Web Push).
-  throw new HttpError(503, "Sending notifications isn't available yet on this server.");
+const testPush: Handler = async ({ env }) => {
+  const vapid = vapidFromEnv(env);
+  if (!vapid) {
+    throw new HttpError(
+      503,
+      "Notifications aren't configured on the server yet. Set the VAPID keys (README step 3).",
+    );
+  }
+  const subs = await env.DB.prepare('SELECT COUNT(*) AS n FROM subscriptions').first<{
+    n: number;
+  }>();
+  if (!subs?.n) {
+    throw new HttpError(
+      409,
+      'No phone is signed up for notifications yet. Open Sunny from its Home Screen icon, then Settings → Notifications → Turn on.',
+    );
+  }
+  // The API is open, so limit tests to one every 10 seconds.
+  const claim = await env.DB.prepare(
+    `UPDATE settings SET last_test_at = datetime('now') WHERE id = 1
+     AND (last_test_at IS NULL OR last_test_at <= datetime('now', '-10 seconds'))`,
+  ).run();
+  if (claim.meta.changes !== 1) {
+    throw new HttpError(429, 'You just sent a test. Wait 10 seconds, then try again.');
+  }
+
+  const s = await getSettings(env.DB);
+  const { results: affs } = await env.DB.prepare(
+    `SELECT ${AFF_COLS} FROM affirmations WHERE active = 1 AND deleted_at IS NULL`,
+  ).all<AffirmationRow>();
+  const aff = pickAffirmation(affs, s.last_affirmation_id);
+  if (!aff) {
+    throw new HttpError(409, 'Turn on at least one affirmation first, then send a test.');
+  }
+  const settings = toSettings(s);
+  const data = buildPayload({
+    vibe: settings.vibe,
+    name: settings.name,
+    label: 'reminder',
+    affirmation: aff,
+  });
+  const res = await pushToAll(env, vapid, data);
+  if (res.sent === 0) {
+    throw new HttpError(
+      502,
+      res.removed > 0
+        ? "This phone's notification sign-up had expired. Open Settings, tap Turn on again, then send another test."
+        : "Apple's push service didn't accept the notification. Try again in a minute.",
+    );
+  }
+  return json({ sent: res.sent, failed: res.failed });
 };
 
 // ---------- Router ----------

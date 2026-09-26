@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFE259"/>
+      <stop offset="0.55" stop-color="#FF8A3D"/>
+      <stop offset="1" stop-color="#FF4E8A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 512) scale(1) translate(-512 -512)">
+    <circle cx="512" cy="512" r="330" fill="url(#glow)"/>
+    <g fill="#FFF6C8" fill-opacity="0.95"><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(0 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(36 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(72 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(108 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(144 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(180 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(216 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(252 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(288 512 512)"/><rect x="478" y="72" width="68" height="140" rx="34" transform="rotate(324 512 512)"/></g>
+    <circle cx="512" cy="512" r="215" fill="#FFF6C8"/>
+  </g>
+</svg>

@@ -16,8 +16,9 @@ import type { IconName } from '../../../shared/icons';
 import { useToast } from '../components/Toast';
 import { ApiError, api, errorMessage } from './api';
 import { readCache, writeCache } from './cache';
+import { notifState, subscribePush, type NotifState } from '../lib/push';
 
-export type NotifState = NotificationPermission | 'unsupported';
+export type { NotifState };
 export type BootState =
   { kind: 'loading' } | { kind: 'ready' } | { kind: 'error'; message: string };
 
@@ -81,7 +82,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(initial?.settings ?? DEFAULT_SETTINGS);
   const [affirmations, setAffirmations] = useState<Affirmation[]>(initial?.affirmations ?? []);
   const [reminders, setReminders] = useState<Reminder[]>(initial?.reminders ?? []);
-  const [notif, setNotif] = useState<NotifState>('default');
+  const [notif, setNotif] = useState<NotifState>(notifState);
 
   // Latest values for use inside async actions (synced after each commit).
   const latest = useRef({ settings, affirmations, reminders });
@@ -148,10 +149,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [boot.kind, settings, affirmations, reminders]);
 
+  // Must be called straight from a tap: iOS only shows the prompt for a user gesture.
   const enableNotifications = useCallback(async (): Promise<NotifState> => {
-    // Phase 4 replaces this with Notification.requestPermission() + push subscribe.
-    setNotif('granted');
-    return 'granted';
+    if (notifState() === 'unsupported') {
+      setNotif('unsupported');
+      return 'unsupported';
+    }
+    const perm = await Notification.requestPermission();
+    setNotif(perm);
+    if (perm === 'granted') {
+      try {
+        await subscribePush();
+        toast("Notifications are on. You'll get your reminders on the lock screen.");
+      } catch (err) {
+        toast(
+          `Notifications are allowed, but this phone couldn't be registered: ${errorMessage(err)}`,
+        );
+      }
+    } else if (perm === 'denied') {
+      toast('Notifications are off. Turn them on in iPhone Settings → Notifications → Sunny.');
+    }
+    return perm;
+  }, [toast]);
+
+  // Re-send this device's subscription on every launch (it can change), and refresh the
+  // permission when coming back from iPhone Settings.
+  useEffect(() => {
+    if (notifState() === 'granted') {
+      subscribePush().catch((err: unknown) => console.warn('Push re-subscribe failed', err));
+    }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setNotif(notifState());
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   // ---------- Optimistic helper ----------
