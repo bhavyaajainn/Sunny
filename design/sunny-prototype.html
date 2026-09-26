@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFD23F">
+<title>Sunny – affirmation app prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --sun:#FFD23F; --sun-deep:#F2B705; --flame:#FF6B2C; --sky:#8FD3FF; --plum:#2B1B3D;
+  --ink:#2B1B3D; --ink-soft:#6A5780; --card:#FFFBEA; --page:#FFF1B8; --app:#FFD23F;
+  --line:rgba(43,27,61,.14);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  font-family:"Bricolage Grotesque", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--ink:#FFF1BF;--ink-soft:#CBB9E3;--card:#33244D;--page:#150E22;--app:#241836;--line:rgba(255,241,191,.16)}
+}
+:root[data-theme="dark"]{--ink:#FFF1BF;--ink-soft:#CBB9E3;--card:#33244D;--page:#150E22;--app:#241836;--line:rgba(255,241,191,.16)}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;height:100%;background:var(--page);color:var(--ink);-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--flame);outline-offset:2px}
+
+/* ---------- Stage ---------- */
+.stage{min-height:100%;display:flex;align-items:center;justify-content:center;gap:56px;padding:24px}
+.flow{width:280px;display:none}
+.flow h1{font-size:32px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
+.flow p{margin:0 0 20px;color:var(--ink-soft);line-height:1.5}
+.flow ol{list-style:none;margin:0;padding:0;counter-reset:s}
+.flow li{counter-increment:s}
+.flow li button{width:100%;text-align:left;display:flex;gap:12px;align-items:center;padding:10px 12px;border:0;background:none;border-radius:14px;font-size:15px}
+.flow li button::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--card);font-weight:800;font-size:13px}
+.flow li button:hover,.flow li button.on{background:var(--card)}
+.flow li button.on::before{background:var(--flame);color:#fff}
+.flow .note{margin-top:20px;font-size:14px;padding:14px;border-radius:16px;border:2px dashed var(--line)}
+@media (min-width:900px){.flow{display:block}}
+
+.phone{position:relative;overflow:hidden;background:var(--app);color:var(--ink);
+  width:390px;height:min(844px,calc(100vh - 48px));border-radius:52px;
+  box-shadow:0 0 0 11px var(--plum),0 40px 80px rgba(43,27,61,.35)}
+.statusbar{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:0 34px;font-weight:600;font-size:15px;z-index:5;pointer-events:none}
+.statusbar .island{width:120px;height:34px;border-radius:20px;background:#000}
+@media (max-width:899px){
+  .stage{padding:0;display:block;height:100%}
+  .phone{width:100%;height:100%;border-radius:0;box-shadow:none}
+  .statusbar{display:none}
+}
+
+/* ---------- Screens ---------- */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;overflow-y:auto;padding:20px 20px 120px}
+.screen.active{display:flex}
+@media (min-width:900px){.screen{padding-top:62px}}
+.screen.onb{padding-bottom:32px}
+h2{font-size:34px;line-height:1.05;font-weight:800;letter-spacing:-.025em;margin:6px 0 6px}
+.sub{color:var(--ink-soft);margin:0 0 20px;line-height:1.45;font-size:16px}
+.row{display:flex;align-items:center;gap:10px}
+.spacer{flex:1}
+
+.btn{border:0;border-radius:999px;padding:16px 22px;font-weight:800;font-size:17px;background:var(--plum);color:#FFE680;transition:transform .12s}
+.btn:active{transform:scale(.96)}
+.btn.flame{background:var(--flame);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}
+.btn.block{width:100%}
+.btn.small{padding:10px 16px;font-size:15px}
+.link{border:0;background:none;color:var(--ink-soft);text-decoration:underline;font-size:15px;padding:8px}
+
+/* Onboarding */
+.bigsun{width:150px;height:150px;margin:24px auto 12px;position:relative}
+.bigsun .core{position:absolute;inset:28px;border-radius:50%;background:var(--flame)}
+.bigsun .rays{position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(var(--flame) 0 8deg,transparent 8deg 30deg);
+  -webkit-mask:radial-gradient(circle,transparent 52%,#000 53%,#000 70%,transparent 71%);mask:radial-gradient(circle,transparent 52%,#000 53%,#000 70%,transparent 71%);animation:spin 24s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wordmark{text-align:center;font-size:56px;font-weight:800;letter-spacing:-.04em;margin:0}
+.center{text-align:center}
+.steps{list-style:none;padding:0;margin:8px 0 24px;counter-reset:st}
+.steps li{counter-increment:st;display:flex;gap:14px;align-items:center;background:var(--card);border-radius:20px;padding:14px 16px;margin-bottom:10px;line-height:1.35}
+.steps li::before{content:counter(st);flex:none;width:30px;height:30px;border-radius:50%;background:var(--sun);color:var(--plum);display:grid;place-items:center;font-weight:800}
+.progress{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
+.progress i{width:28px;height:6px;border-radius:3px;background:var(--line)}
+.progress i.on{background:var(--plum)}
+:root[data-theme="dark"] .progress i.on{background:var(--sun)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .progress i.on{background:var(--sun)}}
+
+/* iOS-style alert */
+.alert-wrap{position:absolute;inset:0;background:rgba(0,0,0,.35);display:none;place-items:center;z-index:20}
+.alert-wrap.show{display:grid}
+.alert{width:270px;border-radius:16px;background:rgba(245,245,245,.96);color:#111;text-align:center;overflow:hidden;font-family:-apple-system,system-ui,sans-serif}
+.alert p{margin:0;padding:18px 16px 14px;font-size:14px;line-height:1.35}
+.alert b{display:block;font-size:17px;margin-bottom:4px}
+.alert .acts{display:flex;border-top:1px solid #ccc}
+.alert .acts button{flex:1;border:0;background:none;padding:12px;font-size:17px;color:#007AFF}
+.alert .acts button+button{border-left:1px solid #ccc;font-weight:600}
+
+/* Passcode */
+.dots{display:flex;gap:18px;justify-content:center;margin:18px 0 28px}
+.dots i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 2.5px var(--ink)}
+.dots i.on{background:var(--ink)}
+.pad{display:grid;grid-template-columns:repeat(3,76px);gap:16px;justify-content:center}
+.pad button{height:76px;border-radius:50%;border:0;background:var(--card);font-size:30px;font-weight:600}
+.pad button:active{background:var(--sun-deep)}
+.pad .empty{visibility:hidden}
+
+/* Today */
+.greet{font-size:17px;color:var(--ink-soft)}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;background:var(--card);font-weight:600;font-size:14px}
+.suncard{position:relative;margin-top:16px;border-radius:36px;background:#FFFBEA;color:#2B1B3D;padding:96px 24px 24px;overflow:hidden;min-height:400px;display:flex;flex-direction:column}
+.suncard .disc{position:absolute;top:-70px;right:-60px;width:220px;height:220px}
+.suncard .disc .core{position:absolute;inset:40px;border-radius:50%;background:var(--sun)}
+.suncard .disc .rays{position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(var(--sun) 0 7deg,transparent 7deg 24deg);
+  -webkit-mask:radial-gradient(circle,transparent 54%,#000 55%,#000 72%,transparent 73%);mask:radial-gradient(circle,transparent 54%,#000 55%,#000 72%,transparent 73%);animation:spin 30s linear infinite}
+.suncard .say{font-size:36px;line-height:1.08;font-weight:800;letter-spacing:-.025em;margin:0;flex:1;position:relative;text-wrap:balance}
+.suncard .say.swap{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{opacity:0;transform:translateY(14px) scale(.96)}}
+.suncard .acts{display:flex;gap:10px;margin-top:24px;position:relative}
+.suncard .acts .btn{flex:1}
+.suncard .acts .btn.ghost{color:#2B1B3D;box-shadow:inset 0 0 0 2px #2B1B3D}
+.felt{margin-top:10px;font-size:15px;color:#6A5780;min-height:22px;position:relative}
+.burst{position:absolute;left:50%;top:50%;pointer-events:none}
+.burst span{position:absolute;width:12px;height:12px;border-radius:3px;animation:fly .9s ease-out forwards}
+@keyframes fly{to{transform:rotate(var(--a)) translateY(calc(-1 * var(--d))) rotate(200deg);opacity:0}}
+.nextrow{margin-top:14px;width:100%;border:0;text-align:left;background:var(--card);border-radius:22px;padding:16px 18px;display:flex;align-items:center;gap:14px}
+.nextrow .t{font-size:22px;font-weight:800}
+.nextrow small{display:block;color:var(--ink-soft);font-size:14px}
+
+/* Lists */
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--card);border-radius:22px;padding:16px;display:flex;gap:12px;align-items:flex-start}
+.item .txt{flex:1;border:0;background:none;text-align:left;padding:0;font-size:17px;line-height:1.35;font-weight:600}
+.item.off .txt{opacity:.45}
+.switch{flex:none;width:52px;height:32px;border-radius:16px;border:0;background:var(--line);position:relative;padding:0}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch[aria-checked="true"]{background:var(--flame)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+#affList .item{align-items:center}
+.item .side{flex:none;display:flex;align-items:center;gap:4px}
+.del{width:36px;height:36px;border-radius:12px;border:0;background:none;color:var(--ink-soft);display:grid;place-items:center;padding:0}
+.del svg{width:22px;height:22px}
+.del:hover,.del:focus-visible{background:rgba(229,51,79,.12);color:#E5334F}
+.toast button{border:0;background:none;color:#fff;font-weight:800;text-decoration:underline;margin-left:12px;padding:0}
+.fab{position:absolute;right:20px;bottom:104px;z-index:4;box-shadow:0 10px 24px rgba(43,27,61,.3)}
+.empty-state{text-align:center;padding:40px 16px;border:2px dashed var(--line);border-radius:24px;color:var(--ink-soft)}
+
+.time{flex:1;border:0;background:none;padding:0;text-align:left}
+.time .big{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.time .lab{font-size:15px;color:var(--ink-soft);margin:4px 0 10px}
+.days{display:flex;gap:5px}
+.days i{font-style:normal;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--line);color:var(--ink-soft)}
+.days i.on{background:var(--sun);color:var(--plum)}
+
+.preview{margin-top:22px;background:var(--card);border-radius:24px;padding:16px}
+.preview h3,.set h3{margin:0 0 10px;font-size:17px}
+.notif{display:flex;gap:10px;background:rgba(255,255,255,.75);color:#111;border-radius:20px;padding:12px;font-family:-apple-system,system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.appicon{flex:none;width:38px;height:38px;border-radius:9px;position:relative;overflow:hidden;background:linear-gradient(135deg,#FFE259 0%,#FF8A3D 55%,#FF4E8A 100%)}
+.appicon::before{content:"";position:absolute;inset:3px;border-radius:50%;background:repeating-conic-gradient(rgba(255,246,200,.9) 0 10deg,transparent 10deg 36deg);-webkit-mask:radial-gradient(circle,transparent 45%,#000 46%);mask:radial-gradient(circle,transparent 45%,#000 46%)}
+.appicon::after{content:"";position:absolute;inset:11px;border-radius:50%;background:#FFF6C8;box-shadow:0 0 8px 2px rgba(255,255,255,.8)}
+.notif .n-top{display:flex;justify-content:space-between;font-size:13px;color:#666}
+.notif b{display:block;font-size:15px;margin:2px 0}
+.notif p{margin:0;font-size:15px;line-height:1.3}
+
+/* Settings */
+.set{background:var(--card);border-radius:24px;padding:6px 16px;margin-bottom:12px}
+.set .line{display:flex;align-items:center;gap:10px;padding:12px 0;min-height:52px}
+.set .line+.line{border-top:1px solid var(--line)}
+.set .line span{flex:1}
+.set input[type=text]{border:0;background:none;text-align:right;font-weight:600;width:50%}
+.ok{color:#1E9E5A;font-weight:600}
+.seg{display:flex;background:var(--line);border-radius:12px;padding:3px}
+.seg button{border:0;background:none;border-radius:9px;padding:6px 10px;font-size:14px;font-weight:600}
+.seg button.on{background:var(--app);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+/* Tabs */
+.tabs{position:absolute;left:14px;right:14px;bottom:16px;height:70px;border-radius:26px;background:var(--plum);display:none;z-index:6;padding:6px}
+.tabs.show{display:flex}
+.tabs button{flex:1;border:0;background:none;color:#B9A8D0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:600}
+.tabs button.on{background:var(--sun);color:var(--plum)}
+.tabs svg{width:22px;height:22px}
+
+/* Sheet */
+.sheet-wrap{position:absolute;inset:0;background:rgba(43,27,61,.45);z-index:15;display:none;align-items:flex-end}
+.sheet-wrap.show{display:flex}
+.sheet{width:100%;background:var(--app);border-radius:30px 30px 0 0;padding:14px 20px 28px;animation:up .28s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translateY(100%)}}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
+.sheet h3{margin:0 0 12px;font-size:24px;font-weight:800}
+.field{width:100%;border:0;border-radius:18px;background:var(--card);padding:14px 16px;font-size:18px;margin-bottom:12px}
+textarea.field{min-height:110px;resize:none;line-height:1.35;font-weight:600}
+.emojis{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.emojis button{border:0;background:var(--card);border-radius:12px;width:44px;height:40px;font-size:20px}
+.daypick{display:flex;gap:6px;margin-bottom:16px}
+.daypick button{flex:1;height:40px;border-radius:12px;border:0;background:var(--card);font-weight:800}
+.daypick button[aria-pressed="true"]{background:var(--plum);color:var(--sun)}
+.sheet .row .btn{flex:1}
+
+/* Lock screen */
+.lock{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;padding:70px 14px 30px;color:#fff;
+  background:radial-gradient(circle at 70% 20%,#FF9A3C 0,#C2375F 40%,#2B1B3D 85%)}
+.lock.show{display:flex}
+.lock .date{font-size:18px;font-weight:600;opacity:.9;font-family:-apple-system,system-ui,sans-serif}
+.lock .clock{font-size:92px;font-weight:600;letter-spacing:-.03em;line-height:1;margin-bottom:auto;font-family:-apple-system,system-ui,sans-serif}
+.lock .notif{width:100%;border:0;text-align:left;background:rgba(255,255,255,.82);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);animation:drop .6s cubic-bezier(.2,1.4,.4,1) both;animation-delay:.4s}
+@keyframes drop{from{opacity:0;transform:translateY(-40px) scale(.9)}}
+.lock .hint{margin-top:18px;font-size:14px;opacity:.8;border:0;background:none;color:#fff}
+
+.toast{position:absolute;left:50%;top:70px;transform:translateX(-50%);background:var(--plum);color:var(--sun);padding:10px 18px;border-radius:999px;font-weight:600;font-size:15px;z-index:40;display:none;white-space:nowrap}
+.toast.show{display:block;animation:pop .35s}
+
+/* Positive icons */
+.ico{display:inline-grid;place-items:center;flex:none;width:24px;height:24px}
+.ico svg{width:100%;height:100%;display:block;overflow:visible}
+.ico.h{width:32px;height:32px;vertical-align:-4px;margin-left:6px;animation:bob 3.4s ease-in-out infinite}
+.doodles{position:absolute;left:0;top:0;width:62%;height:96px;pointer-events:none}
+.doodles .ico{position:absolute;width:30px;height:30px;animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) rotate(7deg)}}
+.badge{flex:none;width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:var(--app)}
+.badge .ico{width:28px;height:28px}
+.nextrow .ico{width:34px;height:34px}
+.greet-ico{width:22px;height:22px;margin-right:6px;animation:spin 18s linear infinite}
+.iconpick{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.iconpick button{border:0;background:var(--card);border-radius:12px;width:44px;height:44px;display:grid;place-items:center}
+.iconpick button[aria-pressed="true"]{box-shadow:inset 0 0 0 3px var(--flame)}
+.iconpick .ico{width:26px;height:26px}
+.burst span.ico{width:24px;height:24px;background:none;border-radius:0}
+.rain span.ico{width:28px;height:28px;background:none;border-radius:0}
+.moment .mrow{display:flex;gap:14px;margin-bottom:18px;position:relative}
+.moment .mrow .ico{width:30px;height:30px;animation:bob 2.6s ease-in-out infinite}
+.moment .mrow .ico:nth-child(2){animation-delay:.4s}
+.moment .mrow .ico:nth-child(3){animation-delay:.8s}
+
+/* Vibe picker */
+#vibeSeg{margin-bottom:14px}
+#vibeSeg button{flex:1;padding:8px 6px}
+
+/* Tapped-notification moment */
+.moment{position:absolute;inset:0;z-index:35;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:70px 26px 40px;overflow:hidden;color:#fff;
+  background:linear-gradient(135deg,var(--m1),var(--m2),var(--m3),var(--m1));background-size:300% 300%;animation:flowbg 8s ease infinite}
+.moment.show{display:flex}
+@keyframes flowbg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.moment .msun{width:124px;height:124px;position:relative;margin-bottom:26px;animation:pulse 2.4s ease-in-out infinite}
+.moment .msun .core{position:absolute;inset:28px;border-radius:50%;background:#FFF6C8;box-shadow:0 0 50px 14px rgba(255,246,200,.75)}
+.moment .msun .rays{position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(#FFF6C8 0 8deg,transparent 8deg 30deg);
+  -webkit-mask:radial-gradient(circle,transparent 52%,#000 53%,#000 70%,transparent 71%);mask:radial-gradient(circle,transparent 52%,#000 53%,#000 70%,transparent 71%);animation:spin 12s linear infinite}
+@keyframes pulse{50%{transform:scale(1.1)}}
+.moment .mtitle{font-size:18px;font-weight:600;margin:0 0 12px;position:relative}
+.moment .mwords{font-size:38px;font-weight:800;line-height:1.1;letter-spacing:-.025em;margin:0 0 32px;text-wrap:balance;text-shadow:0 2px 14px rgba(0,0,0,.2);position:relative}
+.moment .mwords span{display:inline-block;opacity:0;transform:translateY(18px) scale(.8);animation:word .5s cubic-bezier(.2,1.6,.4,1) forwards;animation-delay:calc(var(--i) * 110ms + 300ms)}
+@keyframes word{to{opacity:1;transform:none}}
+.moment .btn{background:#fff;color:#2B1B3D;position:relative}
+.moment .link{color:#fff;position:relative}
+.rain{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.rain span{position:absolute;top:-20px;width:10px;height:14px;border-radius:3px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(900px) rotate(720deg)}}
+
+/* In-app banner (shown when Sunny is open at reminder time) */
+.banner{position:absolute;left:10px;right:10px;top:12px;z-index:25;border:0;text-align:left;display:none;gap:12px;align-items:center;padding:14px 14px 18px;border-radius:24px;color:#fff;
+  background:linear-gradient(120deg,var(--m1),var(--m2),var(--m3));box-shadow:0 14px 30px rgba(43,27,61,.35);overflow:hidden}
+@media (min-width:900px){.banner{top:54px}}
+.banner.show{display:flex;animation:bdrop .7s cubic-bezier(.2,1.5,.4,1)}
+@keyframes bdrop{from{transform:translateY(-140%) scale(.9)}}
+.banner .appicon{width:44px;height:44px;border-radius:11px;animation:wiggle .5s ease-in-out .7s 3}
+@keyframes wiggle{25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+.banner b{display:block;font-size:16px}
+.banner p{margin:2px 0 0;font-size:15px;line-height:1.3;opacity:.95}
+.banner .bar{position:absolute;left:0;bottom:0;height:4px;width:100%;background:rgba(255,255,255,.75);transform-origin:left;animation:shrink 6s linear forwards}
+@keyframes shrink{to{transform:scaleX(0)}}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .moment .mwords span{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <aside class="flow" aria-label="Prototype screens">
+    <h1>Sunny</h1>
+    <p>Clickable prototype of the affirmation app. Jump to any screen, or tap through it like the real app.</p>
+    <ol id="flowList"></ol>
+    <div class="note">Try this path: send a test notification from Reminders, then tap the notification on the lock screen.</div>
+  </aside>
+
+  <div class="phone" id="phone">
+    <div class="statusbar" aria-hidden="true"><span id="sbTime">9:41</span><span class="island"></span><span>●●● ▮</span></div>
+
+    <!-- 1. Install -->
+    <section class="screen onb" id="s-install">
+      <div class="progress"><i class="on"></i><i></i><i></i></div>
+      <div class="bigsun" aria-hidden="true"><div class="rays"></div><div class="core"></div></div>
+      <p class="wordmark">Sunny</p>
+      <p class="sub center">Your own words, sent to you through the day.</p>
+      <ol class="steps">
+        <li>Open this page in Safari</li>
+        <li>Tap the Share button at the bottom</li>
+        <li>Choose "Add to Home Screen", then open Sunny from its icon</li>
+      </ol>
+      <div class="spacer"></div>
+      <button class="btn block" data-go="notify">I've added it</button>
+    </section>
+
+    <!-- 2. Notifications -->
+    <section class="screen onb" id="s-notify">
+      <div class="progress"><i class="on"></i><i class="on"></i><i></i></div>
+      <div class="bigsun" aria-hidden="true"><div class="rays"></div><div class="core"></div></div>
+      <h2 class="center">Let Sunny cheer you on</h2>
+      <p class="sub center">Allow notifications so your affirmations reach you on the lock screen, even when the app is closed.</p>
+      <div class="notif" aria-hidden="true" style="margin-bottom:20px">
+        <div class="appicon"></div>
+        <div style="flex:1"><div class="n-top"><span>Sunny</span><span>now</span></div>
+        <b>Hey Bhavya, read this out loud 📣</b><p>I am capable of hard things, and I do them anyway.</p></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn flame block" id="askNotif">Turn on notifications</button>
+      <button class="link" data-go="passcode">Not now</button>
+    </section>
+
+    <!-- 3. Passcode -->
+    <section class="screen onb" id="s-passcode">
+      <div class="progress"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <h2 class="center" style="margin-top:20px">Set a passcode</h2>
+      <p class="sub center">Keeps your affirmations private. You'll enter it once on this phone.</p>
+      <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
+      <div class="pad" id="pad"></div>
+    </section>
+
+    <!-- 4. Today -->
+    <section class="screen" id="s-today">
+      <div class="row"><span class="ico greet-ico" data-ico="sun" aria-hidden="true"></span><span class="greet" id="greet">Good morning, Bhavya</span></div>
+      <div class="suncard" id="suncard">
+        <div class="disc" aria-hidden="true"><div class="rays"></div><div class="core"></div></div>
+        <div class="doodles" id="doodles" aria-hidden="true"></div>
+        <p class="say" id="say" aria-live="polite"></p>
+        <div class="felt" id="felt"></div>
+        <div class="acts">
+          <button class="btn flame" id="feelBtn">I feel it ☀️</button>
+          <button class="btn ghost" id="nextBtn">Another one</button>
+        </div>
+      </div>
+      <button class="nextrow" data-go="reminders">
+        <span id="nextIco" aria-hidden="true"></span>
+        <span style="flex:1"><small>Next reminder</small><span class="t" id="nextT">1:00 PM</span></span>
+        <span aria-hidden="true">›</span>
+      </button>
+    </section>
+
+    <!-- 5. Affirmations -->
+    <section class="screen" id="s-affs">
+      <h2>Affirmations<span class="ico h" data-ico="sprout" aria-hidden="true"></span></h2>
+      <p class="sub" id="affCount"></p>
+      <div class="list" id="affList"></div>
+    </section>
+
+    <!-- 6. Reminders -->
+    <section class="screen" id="s-reminders">
+      <h2>Reminders<span class="ico h" data-ico="sun" aria-hidden="true"></span></h2>
+      <p class="sub">Sunny picks a random affirmation for each one.</p>
+      <div class="list" id="timeList"></div>
+      <button class="btn ghost block" style="margin-top:12px" id="addTime">Add reminder</button>
+      <div class="preview">
+        <h3>Notification vibe</h3>
+        <div class="seg" id="vibeSeg"><button data-v="hype">Hype 🔥</button><button data-v="sunny" class="on">Sunny ☀️</button><button data-v="calm">Calm 🌙</button></div>
+        <div class="notif" id="previewNotif"></div>
+        <div class="row" style="margin-top:12px;flex-wrap:wrap">
+          <button class="btn small" id="testBtn">Send to lock screen</button>
+          <button class="btn small ghost" id="bannerBtn">Show in-app banner</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Settings -->
+    <section class="screen" id="s-settings">
+      <h2>Settings<span class="ico h" data-ico="flower" aria-hidden="true"></span></h2>
+      <div class="set">
+        <label class="line"><span>Your name</span><input type="text" id="nameIn" value="Bhavya"></label>
+        <div class="line"><span>Notifications</span><span class="ok" id="notifState">Allowed</span></div>
+        <div class="line"><span>Test notification</span><button class="btn small" id="testBtn2">Send</button></div>
+      </div>
+      <div class="set">
+        <div class="line"><span>Theme</span>
+          <div class="seg" id="themeSeg"><button data-t="light">Light</button><button data-t="system" class="on">Auto</button><button data-t="dark">Dark</button></div>
+        </div>
+        <div class="line"><span>Passcode</span><button class="btn small ghost" data-go="passcode">Change</button></div>
+      </div>
+      <div class="set">
+        <div class="line"><span>Install guide</span><button class="btn small ghost" data-go="install">Show</button></div>
+      </div>
+    </section>
+
+    <button class="btn flame fab" id="fab" style="display:none">＋ Add affirmation</button>
+
+    <nav class="tabs" id="tabs" aria-label="Main">
+      <button data-go="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>Today</button>
+      <button data-go="affs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Affirmations</button>
+      <button data-go="reminders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/></svg>Reminders</button>
+      <button data-go="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>Settings</button>
+    </nav>
+
+    <div class="sheet-wrap" id="sheetWrap"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+    <div class="alert-wrap" id="alertWrap">
+      <div class="alert" role="alertdialog">
+        <p><b>"Sunny" Would Like to Send You Notifications</b>Notifications may include alerts, sounds, and icon badges. These can be configured in Settings.</p>
+        <div class="acts"><button id="deny">Don't Allow</button><button id="allow">Allow</button></div>
+      </div>
+    </div>
+
+    <div class="lock" id="lock">
+      <div class="date" id="lockDate"></div>
+      <div class="clock" id="lockClock"></div>
+      <button class="notif" id="lockNotif"></button>
+      <button class="hint" id="lockClose">Close lock screen</button>
+    </div>
+
+    <div class="moment" id="moment" role="dialog" aria-label="Your affirmation">
+      <div class="rain" id="rain" aria-hidden="true"></div>
+      <div class="msun" aria-hidden="true"><div class="rays"></div><div class="core"></div></div>
+      <div class="mrow" id="mIcons" aria-hidden="true"></div>
+      <p class="mtitle" id="mTitle"></p>
+      <p class="mwords" id="mWords"></p>
+      <button class="btn block" id="saidIt">I said it out loud 🎉</button>
+      <button class="link" id="mLater">Later</button>
+    </div>
+
+    <button class="banner" id="banner" aria-live="polite">
+      <div class="appicon"></div>
+      <div style="flex:1"><b id="bTitle"></b><p id="bBody"></p></div>
+      <span class="bar"></span>
+    </button>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Positive icon set ---------- */
+const ICONS = {
+  sun: '<circle cx="16" cy="16" r="7" fill="#FFB800"/><g stroke="#FF8A3D" stroke-width="2.5" stroke-linecap="round"><path d="M16 2v4M16 26v4M2 16h4M26 16h4M6.1 6.1l2.8 2.8M23.1 23.1l2.8 2.8M6.1 25.9l2.8-2.8M23.1 8.9l2.8-2.8"/></g>',
+  sprout: '<path d="M16 28V15" stroke="#3FA34D" stroke-width="2.5" stroke-linecap="round"/><path d="M16 17C16 10 11 6 4 6c0 7 5 11 12 11z" fill="#6CCB5F"/><path d="M16 14c0-6 4-10 12-10 0 6-4 10-12 10z" fill="#9BE07A"/><path d="M9 29h14" stroke="#C07A3E" stroke-width="3" stroke-linecap="round"/>',
+  flower: '<g fill="#FF7BAC"><circle cx="16" cy="9" r="5"/><circle cx="22.7" cy="13.8" r="5"/><circle cx="20.1" cy="21.7" r="5"/><circle cx="11.9" cy="21.7" r="5"/><circle cx="9.3" cy="13.8" r="5"/></g><circle cx="16" cy="16" r="4.5" fill="#FFD23F"/>',
+  heart: '<path d="M16 28S4 20.5 4 12a6 6 0 0 1 12-1 6 6 0 0 1 12 1c0 8.5-12 16-12 16z" fill="#FF4E6A"/><path d="M9 10a3 3 0 0 1 3-2" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity=".7"/>',
+  star: '<path d="M16 3l3.9 8 8.8 1.2-6.4 6.1 1.6 8.7L16 22.8 8.1 27l1.6-8.7-6.4-6.1 8.8-1.2z" fill="#FFC93C" stroke="#F29F05" stroke-width="1.5" stroke-linejoin="round"/>',
+  rainbow: '<g fill="none" stroke-width="3.2" stroke-linecap="round"><path d="M3 25a13 13 0 0 1 26 0" stroke="#FF5E5E"/><path d="M7.5 25a8.5 8.5 0 0 1 17 0" stroke="#FFC93C"/><path d="M12 25a4 4 0 0 1 8 0" stroke="#5EC8F2"/></g>',
+  cloud: '<path d="M9 25a5.5 5.5 0 0 1-.8-10.9A7.5 7.5 0 0 1 22.6 12 6.5 6.5 0 0 1 23 25z" fill="#fff" stroke="#8FD3FF" stroke-width="2" stroke-linejoin="round"/>',
+  moon: '<path d="M20 4a12 12 0 1 0 8 18A10 10 0 0 1 20 4z" fill="#FFE27A" stroke="#E0A800" stroke-width="1.5" stroke-linejoin="round"/><circle cx="13" cy="15" r="1.6" fill="#E0A800"/><circle cx="17" cy="22" r="1.2" fill="#E0A800"/>'
+};
+const ICON_KEYS = Object.keys(ICONS);
+const ico = (n, cls = '') => `<span class="ico ${cls}"><svg viewBox="0 0 32 32" aria-hidden="true">${ICONS[n] || ICONS.sun}</svg></span>`;
+
+/* ---------- Notification vibes ---------- */
+const VIBES = {
+  hype:  { t: ["🔥 Hey {n}, this one's for you!", '⚡ Power-up time, {n}!', '🚀 Say it out loud, {n}!'], e: '💪', c: ['#FF4E8A','#FF8A3D','#7B2FF7'], i: ['star','heart','sun'] },
+  sunny: { t: ['☀️ Your {l} is here', '🌻 A little sunshine for you, {n}', '✨ Pause for 5 seconds, {n}'], e: '☀️', c: ['#FF9F1C','#FF5E3A','#E8356D'], i: ['sun','flower','sprout'] },
+  calm:  { t: ['🌙 Breathe in, {n}', '🍃 A gentle reminder for you', '💛 Just for you, {n}'], e: '🌿', c: ['#5EC8F2','#8B7CF6','#4A3A8C'], i: ['moon','cloud','sprout'] }
+};
+
+/* ---------- State ---------- */
+const S = {
+  name: 'Bhavya', felt: 0, cur: 0, notif: 'granted', vibe: 'sunny',
+  affs: [
+    ['I am capable of hard things, and I do them anyway.', 'star'],
+    ['My work gets better every day, and so do I.', 'sprout'],
+    ['I choose calm over rush.', 'cloud'],
+    ["I've handled tough days before. I'll handle this one too.", 'sun'],
+    ['Good things are on their way to me.', 'rainbow'],
+    ["I am proud of how far I've come.", 'heart']
+  ].map(([t, i], k) => ({ id: k + 1, text: t, icon: i, on: true })),
+  times: [
+    { id: 1, time: '07:30', label: 'Morning boost', days: [1,1,1,1,1,1,1], on: true },
+    { id: 2, time: '13:00', label: 'Midday reset', days: [1,1,1,1,1,0,0], on: true },
+    { id: 3, time: '21:30', label: 'Wind down', days: [1,1,1,1,1,1,1], on: false }
+  ]
+};
+let uid = 100, pin = '', last = { idx: 0, title: '', text: '' };
+const DAYS = ['M','T','W','T','F','S','S'];
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = t => { let [h, m] = t.split(':').map(Number); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${String(m).padStart(2,'0')} ${ap}`; };
+const activeAffs = () => S.affs.filter(a => a.on);
+const timeIcon = t => { const h = +t.split(':')[0]; return h < 11 ? 'sun' : h < 16 ? 'flower' : h < 19 ? 'rainbow' : 'moon'; };
+const clockNow = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, '');
+
+/* ---------- Navigation ---------- */
+const SCREENS = [
+  ['install','Install on iPhone'], ['notify','Allow notifications'], ['passcode','Set passcode'],
+  ['today','Today'], ['affs','Affirmations'], ['reminders','Reminders'], ['settings','Settings'],
+  ['lock','Notification on lock screen'], ['moment','After tapping a notification'], ['banner','Reminder while app is open']
+];
+const TABS = ['today','affs','reminders','settings'];
+$('#flowList').innerHTML = SCREENS.map(([id, l]) => `<li><button data-go="${id}">${l}</button></li>`).join('');
+
+function go(id){
+  if (id === 'lock') return showLock();
+  if (id === 'moment') { go('today'); pickNotif(); return showMoment(); }
+  if (id === 'banner') { go('today'); return showBanner(); }
+  closeLock(); closeSheet(); closeMoment(); hideBanner();
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 's-' + id));
+  $('#tabs').classList.toggle('show', TABS.includes(id));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.go === id));
+  $('#fab').style.display = id === 'affs' ? 'block' : 'none';
+  markFlow(id);
+  if (id === 'passcode') { pin = ''; drawDots(); }
+  render();
+}
+function markFlow(id){ document.querySelectorAll('.flow li button').forEach(b => b.classList.toggle('on', b.dataset.go === id)); }
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
+
+/* ---------- Onboarding ---------- */
+$('#askNotif').onclick = () => $('#alertWrap').classList.add('show');
+$('#allow').onclick = () => { S.notif = 'granted'; $('#alertWrap').classList.remove('show'); go('passcode'); };
+$('#deny').onclick = () => { S.notif = 'denied'; $('#alertWrap').classList.remove('show'); go('passcode'); };
+
+$('#pad').innerHTML = ['1','2','3','4','5','6','7','8','9','','0','⌫']
+  .map(k => `<button class="${k ? '' : 'empty'}" data-k="${k}" aria-label="${k === '⌫' ? 'Delete' : k}">${k}</button>`).join('');
+$('#pad').onclick = e => {
+  const k = e.target.dataset.k; if (!k) return;
+  pin = k === '⌫' ? pin.slice(0, -1) : (pin + k).slice(0, 4);
+  drawDots();
+  if (pin.length === 4) setTimeout(() => { toast('Passcode set'); go('today'); }, 250);
+};
+function drawDots(){ document.querySelectorAll('#dots i').forEach((d, i) => d.classList.toggle('on', i < pin.length)); }
+
+/* ---------- Today ---------- */
+$('#doodles').innerHTML = [['cloud',18,26,0],['star',78,10,.5],['heart',128,40,1],['flower',66,58,1.5]]
+  .map(([n, x, y, d]) => ico(n).replace('class="ico "', `class="ico" style="left:${x}px;top:${y}px;animation-delay:${d}s"`)).join('');
+
+function showAff(i, animate){
+  const list = activeAffs(), say = $('#say');
+  if (!list.length) { say.textContent = 'Add an affirmation to get started.'; return; }
+  S.cur = ((i % list.length) + list.length) % list.length;
+  say.textContent = list[S.cur].text;
+  if (animate) { say.classList.remove('swap'); void say.offsetWidth; say.classList.add('swap'); }
+}
+$('#nextBtn').onclick = () => {
+  const n = activeAffs().length; if (n < 2) return;
+  let j; do { j = Math.floor(Math.random() * n); } while (j === S.cur);
+  showAff(j, true);
+};
+$('#feelBtn').onclick = e => { feltOne(); burst($('#suncard'), e.currentTarget); };
+function feltOne(){
+  S.felt++;
+  $('#felt').textContent = S.felt === 1 ? 'Felt once today. Keep it glowing.' : `Felt ${S.felt} times today. You're on fire.`;
+}
+function burst(host, from){
+  const r = host.getBoundingClientRect(), b = from.getBoundingClientRect();
+  const wrap = document.createElement('div'); wrap.className = 'burst';
+  wrap.style.left = (b.left - r.left + b.width / 2) + 'px'; wrap.style.top = (b.top - r.top + b.height / 2) + 'px';
+  const colors = ['#FFD23F','#FF6B2C','#8FD3FF','#FF7BAC','#6CCB5F'];
+  for (let i = 0; i < 24; i++) {
+    const s = document.createElement('span');
+    if (i % 3 === 0) { s.className = 'ico'; s.innerHTML = `<svg viewBox="0 0 32 32">${ICONS[['sun','heart','star','flower','sprout'][i % 5]]}</svg>`; }
+    else { s.style.background = colors[i % colors.length]; if (i % 2) s.style.borderRadius = '50%'; }
+    s.style.setProperty('--a', (i * (360 / 24) + Math.random() * 10) + 'deg');
+    s.style.setProperty('--d', (70 + Math.random() * 100) + 'px');
+    wrap.appendChild(s);
+  }
+  host.appendChild(wrap); setTimeout(() => wrap.remove(), 1000);
+}
+function nextReminder(){
+  const now = new Date(), mins = now.getHours() * 60 + now.getMinutes(), dow = (now.getDay() + 6) % 7;
+  const on = S.times.filter(t => t.on).sort((a, b) => a.time.localeCompare(b.time));
+  for (let d = 0; d < 8; d++) {
+    const day = (dow + d) % 7;
+    for (const t of on) {
+      const [h, m] = t.time.split(':').map(Number);
+      if (t.days[day] && (d > 0 || h * 60 + m > mins))
+        return { t, text: (d === 0 ? '' : d === 1 ? 'Tomorrow, ' : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][day] + ', ') + fmt(t.time) };
+    }
+  }
+  return { t: null, text: 'None scheduled' };
+}
+
+/* ---------- Affirmations ---------- */
+const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+function removeAff(a){
+  if (!a) return;
+  const at = S.affs.indexOf(a);
+  S.affs.splice(at, 1);
+  renderAffs(); showAff(0);
+  toast('Affirmation deleted', 'Undo', () => {
+    S.affs.splice(Math.min(at, S.affs.length), 0, a);
+    renderAffs(); toast('Affirmation restored');
+  });
+}
+function renderAffs(){
+  const on = activeAffs().length;
+  $('#affCount').textContent = `${S.affs.length} saved, ${on} in rotation. Tap one to edit.`;
+  $('#affList').innerHTML = S.affs.length ? S.affs.map(a => `
+    <div class="item ${a.on ? '' : 'off'}">
+      <span class="badge" aria-hidden="true">${ico(a.icon)}</span>
+      <button class="txt" data-edit="${a.id}">${esc(a.text)}</button>
+      <div class="side">
+        <button class="switch" role="switch" aria-checked="${a.on}" aria-label="Include in rotation" data-tog="${a.id}"></button>
+        <button class="del" data-del="${a.id}" aria-label="Delete affirmation">${TRASH}</button>
+      </div>
+    </div>`).join('')
+    : `<div class="empty-state">${ico('sprout').replace('class="ico "','class="ico" style="width:48px;height:48px;margin-bottom:8px"')}<br>No affirmations yet. Tap "Add affirmation" to plant your first one.</div>`;
+}
+$('#affList').onclick = e => {
+  const t = e.target.closest('[data-tog]'), ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
+  if (t) { const a = S.affs.find(x => x.id == t.dataset.tog); a.on = !a.on; renderAffs(); }
+  if (ed) affSheet(S.affs.find(x => x.id == ed.dataset.edit));
+  if (del) removeAff(S.affs.find(x => x.id == del.dataset.del));
+};
+$('#fab').onclick = () => affSheet();
+function affSheet(a){
+  let icon = a ? a.icon : ICON_KEYS[S.affs.length % ICON_KEYS.length];
+  openSheet(`
+    <div class="grab"></div>
+    <h3>${a ? 'Edit affirmation' : 'New affirmation'}</h3>
+    <textarea class="field" id="affText" placeholder="Write it the way you'd say it to yourself">${a ? esc(a.text) : ''}</textarea>
+    <div class="iconpick" role="group" aria-label="Pick an icon">${ICON_KEYS.map(k => `<button data-icon="${k}" aria-pressed="${k === icon}" aria-label="${k}">${ico(k)}</button>`).join('')}</div>
+    <div class="emojis">${['☀️','💪','✨','🌻','🔥','🧘'].map(x => `<button data-emo="${x}" aria-label="Add ${x}">${x}</button>`).join('')}</div>
+    <div class="row">
+      ${a ? '<button class="btn ghost" id="delAff">Delete</button>' : '<button class="btn ghost" id="cancel">Cancel</button>'}
+      <button class="btn flame" id="saveAff">Save</button>
+    </div>`);
+  const ta = $('#affText'); setTimeout(() => ta.focus(), 50);
+  $('#sheet').querySelectorAll('[data-icon]').forEach(b => b.onclick = () => {
+    icon = b.dataset.icon;
+    $('#sheet').querySelectorAll('[data-icon]').forEach(x => x.setAttribute('aria-pressed', x === b));
+  });
+  $('#sheet').querySelectorAll('[data-emo]').forEach(b => b.onclick = () => { ta.value = (ta.value.trim() + ' ' + b.dataset.emo).trim(); ta.focus(); });
+  $('#saveAff').onclick = () => {
+    const v = ta.value.trim(); if (!v) { ta.focus(); return; }
+    if (a) Object.assign(a, { text: v, icon }); else S.affs.unshift({ id: uid++, text: v, icon, on: true });
+    closeSheet(); renderAffs(); toast(a ? 'Affirmation saved' : 'Affirmation added 🌱');
+  };
+  if (a) $('#delAff').onclick = () => { closeSheet(); removeAff(a); };
+  else $('#cancel').onclick = closeSheet;
+}
+
+/* ---------- Reminders ---------- */
+function renderTimes(){
+  S.times.sort((a, b) => a.time.localeCompare(b.time));
+  $('#timeList').innerHTML = S.times.map(t => `
+    <div class="item ${t.on ? '' : 'off'}">
+      <span class="badge" aria-hidden="true" style="opacity:${t.on ? 1 : .5}">${ico(timeIcon(t.time))}</span>
+      <button class="time" data-edit="${t.id}" style="opacity:${t.on ? 1 : .5}">
+        <div class="big">${fmt(t.time)}</div>
+        <div class="lab">${esc(t.label)}</div>
+        <div class="days">${t.days.map((d, i) => `<i class="${d ? 'on' : ''}">${DAYS[i]}</i>`).join('')}</div>
+      </button>
+      <button class="switch" role="switch" aria-checked="${t.on}" aria-label="Reminder on" data-tog="${t.id}"></button>
+    </div>`).join('');
+  pickNotif();
+  $('#previewNotif').innerHTML = notifHTML();
+}
+$('#timeList').onclick = e => {
+  const t = e.target.closest('[data-tog]'), ed = e.target.closest('[data-edit]');
+  if (t) { const x = S.times.find(y => y.id == t.dataset.tog); x.on = !x.on; renderTimes(); renderToday(); }
+  if (ed) timeSheet(S.times.find(y => y.id == ed.dataset.edit));
+};
+$('#addTime').onclick = () => timeSheet();
+function timeSheet(t){
+  const days = t ? [...t.days] : [1,1,1,1,1,1,1];
+  openSheet(`
+    <div class="grab"></div>
+    <h3>${t ? 'Edit reminder' : 'New reminder'}</h3>
+    <input class="field" type="time" id="tIn" value="${t ? t.time : '18:00'}" aria-label="Time">
+    <input class="field" type="text" id="lIn" value="${t ? esc(t.label) : ''}" placeholder="Name, like Evening lift" aria-label="Name">
+    <div class="daypick">${DAYS.map((d, i) => `<button aria-pressed="${!!days[i]}" data-d="${i}">${d}</button>`).join('')}</div>
+    <div class="row">
+      ${t ? '<button class="btn ghost" id="delT">Delete</button>' : '<button class="btn ghost" id="cancel">Cancel</button>'}
+      <button class="btn flame" id="saveT">Save</button>
+    </div>`);
+  $('#sheet').querySelectorAll('[data-d]').forEach(b => b.onclick = () => { const i = +b.dataset.d; days[i] = days[i] ? 0 : 1; b.setAttribute('aria-pressed', !!days[i]); });
+  $('#saveT').onclick = () => {
+    const time = $('#tIn').value || '18:00', label = $('#lIn').value.trim() || 'Reminder';
+    if (t) Object.assign(t, { time, label, days }); else S.times.push({ id: uid++, time, label, days, on: true });
+    closeSheet(); renderTimes(); renderToday(); toast('Reminder saved');
+  };
+  if (t) $('#delT').onclick = () => { S.times = S.times.filter(x => x !== t); closeSheet(); renderTimes(); renderToday(); toast('Reminder deleted'); };
+  else $('#cancel').onclick = closeSheet;
+}
+
+/* ---------- Notification content ---------- */
+function applyVibe(){
+  const [a, b, c] = VIBES[S.vibe].c, ph = $('#phone');
+  ph.style.setProperty('--m1', a); ph.style.setProperty('--m2', b); ph.style.setProperty('--m3', c);
+}
+function pickNotif(){
+  const v = VIBES[S.vibe], list = activeAffs(), t = S.times.find(x => x.on);
+  last.idx = Math.floor(Math.random() * Math.max(list.length, 1));
+  last.title = v.t[Math.floor(Math.random() * v.t.length)].replace('{n}', S.name || 'friend').replace('{l}', (t ? t.label : 'reminder').toLowerCase());
+  last.text = list.length ? `${list[last.idx].text} ${v.e}` : 'Add an affirmation to get started.';
+}
+function notifHTML(){
+  return `<div class="appicon"></div><div style="flex:1"><div class="n-top"><span>Sunny</span><span>now</span></div><b>${esc(last.title)}</b><p>${esc(last.text)}</p></div>`;
+}
+$('#vibeSeg').onclick = e => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  S.vibe = b.dataset.v;
+  document.querySelectorAll('#vibeSeg button').forEach(x => x.classList.toggle('on', x === b));
+  applyVibe(); renderTimes();
+};
+$('#testBtn').onclick = $('#testBtn2').onclick = () => {
+  if (S.notif !== 'granted') { toast('Turn on notifications in iPhone Settings first'); return; }
+  showLock();
+};
+$('#bannerBtn').onclick = () => showBanner();
+
+/* ---------- Lock screen (real iOS look) ---------- */
+function showLock(){
+  const now = new Date();
+  $('#lockClock').textContent = clockNow();
+  $('#lockDate').textContent = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+  pickNotif();
+  const n = $('#lockNotif'); n.innerHTML = notifHTML();
+  n.style.animation = 'none'; void n.offsetWidth; n.style.animation = '';
+  $('#lock').classList.add('show'); markFlow('lock');
+}
+function closeLock(){ $('#lock').classList.remove('show'); }
+$('#lockNotif').onclick = () => { closeLock(); go('today'); showMoment(); };
+$('#lockClose').onclick = () => go('today');
+
+/* ---------- Tapped-notification moment (in-app, fully animated) ---------- */
+function showMoment(){
+  const m = $('#moment');
+  $('#mIcons').innerHTML = VIBES[S.vibe].i.map(n => ico(n)).join('');
+  $('#mTitle').textContent = last.title;
+  const words = last.text.split(/\s+/);
+  $('#mWords').innerHTML = words.map((w, i) => `<span style="--i:${i}">${esc(w)}</span>`).join(' ');
+  m.classList.remove('show'); void m.offsetWidth; m.classList.add('show');
+  rain(); markFlow('moment');
+}
+function closeMoment(){ $('#moment').classList.remove('show'); $('#rain').innerHTML = ''; }
+function rain(){
+  const r = $('#rain'); r.innerHTML = '';
+  const icons = [...VIBES[S.vibe].i, 'heart', 'star'], cols = ['#FFF6C8','#FFD23F','#8FD3FF','#fff','#FF7BAC'];
+  for (let i = 0; i < 44; i++) {
+    const s = document.createElement('span');
+    if (i % 3 === 0) { s.className = 'ico'; s.innerHTML = `<svg viewBox="0 0 32 32">${ICONS[icons[i % icons.length]]}</svg>`; }
+    else { s.style.background = cols[i % cols.length]; if (i % 2) s.style.borderRadius = '50%'; }
+    s.style.left = (Math.random() * 100) + '%';
+    s.style.animationDuration = (2 + Math.random() * 1.8) + 's';
+    s.style.animationDelay = (Math.random() * 1) + 's';
+    r.appendChild(s);
+  }
+}
+$('#saidIt').onclick = e => {
+  burst($('#moment'), e.currentTarget); feltOne();
+  setTimeout(() => { closeMoment(); showAff(last.idx, true); toast('That glow is yours 🌟'); }, 750);
+};
+$('#mLater').onclick = () => { closeMoment(); markFlow('today'); };
+
+/* ---------- In-app banner (reminder fires while Sunny is open) ---------- */
+let bt;
+function showBanner(){
+  pickNotif();
+  $('#bTitle').textContent = last.title;
+  $('#bBody').textContent = last.text;
+  const b = $('#banner'); b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+  markFlow('banner');
+  clearTimeout(bt); bt = setTimeout(hideBanner, 6000);
+}
+function hideBanner(){ $('#banner').classList.remove('show'); }
+$('#banner').onclick = () => { hideBanner(); showMoment(); };
+
+/* ---------- Settings ---------- */
+$('#nameIn').oninput = e => { S.name = e.target.value.trim(); renderToday(); };
+$('#themeSeg').onclick = e => {
+  const b = e.target.closest('[data-t]'); if (!b) return;
+  document.querySelectorAll('#themeSeg button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.dataset.t === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.dataset.theme = b.dataset.t;
+};
+
+/* ---------- Shared ---------- */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#sheetWrap').classList.add('show'); }
+function closeSheet(){ $('#sheetWrap').classList.remove('show'); }
+$('#sheetWrap').onclick = e => { if (e.target.id === 'sheetWrap') closeSheet(); };
+let tt;
+function toast(m, actionLabel, action){
+  const t = $('#toast');
+  t.textContent = m;
+  if (actionLabel) {
+    const b = document.createElement('button');
+    b.textContent = actionLabel;
+    b.onclick = () => { t.classList.remove('show'); clearTimeout(tt); action(); };
+    t.appendChild(b);
+  }
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), actionLabel ? 4500 : 1800);
+}
+
+function renderToday(){
+  const h = new Date().getHours();
+  const part = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  $('#greet').textContent = S.name ? `${part}, ${S.name}` : part;
+  const nx = nextReminder();
+  $('#nextT').textContent = nx.text;
+  $('#nextIco').innerHTML = ico(nx.t ? timeIcon(nx.t.time) : 'cloud');
+  $('#notifState').textContent = S.notif === 'granted' ? 'Allowed' : 'Off';
+  $('#notifState').className = S.notif === 'granted' ? 'ok' : '';
+}
+function render(){ renderToday(); renderAffs(); renderTimes(); if (!$('#say').textContent) showAff(0); }
+document.querySelectorAll('[data-ico]').forEach(el => el.innerHTML = `<svg viewBox="0 0 32 32">${ICONS[el.dataset.ico]}</svg>`);
+$('#sbTime').textContent = clockNow();
+setInterval(() => { $('#sbTime').textContent = clockNow(); }, 10000);
+applyVibe();
+go('install');
+</script>
+</body>
+</html>

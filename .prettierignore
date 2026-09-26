@@ -1,0 +1,6 @@
+node_modules
+web/dist
+worker/.wrangler
+design
+package-lock.json
+BUILD_PROMPT.md

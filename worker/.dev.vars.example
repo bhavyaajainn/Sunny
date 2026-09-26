@@ -1,0 +1,7 @@
+# Copy to worker/.dev.vars for `wrangler dev`. Never commit .dev.vars.
+# Generate with: node scripts/generate-vapid.mjs
+VAPID_PRIVATE_KEY=
+# VAPID_PUBLIC_KEY and VAPID_SUBJECT live in wrangler.toml [vars];
+# override them here for local dev if you like.
+# VAPID_PUBLIC_KEY=
+# VAPID_SUBJECT=mailto:you@example.com

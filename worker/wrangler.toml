@@ -1,0 +1,27 @@
+name = "sunny"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Frontend (web/dist) and API are served by this one Worker on one HTTPS URL.
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sunny"
+# Paste the id printed by `npx wrangler d1 create sunny`.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Check reminders every minute.
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# From `node scripts/generate-vapid.mjs`. The private key is a secret:
+#   npx wrangler secret put VAPID_PRIVATE_KEY
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = "mailto:you@example.com"
